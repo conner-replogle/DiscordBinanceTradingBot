@@ -1,7 +1,7 @@
 module.exports = {
   apps : [{
     name   : "TradingDiscordBot",
-    script : ""
+    script : "cargo run --release"
   }],
   deploy : {
     production : {
@@ -10,7 +10,7 @@ module.exports = {
        "ref"  : "origin/production",
        "repo" : "git@github.com:conner-replogle/upwork_reda_shadi_rust.git",
        "path" : "/home/deployment/trading_bot",
-       "post-deploy" : "cargo build"
+       "post-deploy" : "diesel migration run && cargo build --release"
     }
   }
 }
