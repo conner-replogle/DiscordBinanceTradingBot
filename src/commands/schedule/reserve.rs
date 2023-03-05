@@ -1,5 +1,6 @@
 use arc_swap::ArcSwapAny;
 use chrono::{NaiveDateTime, Utc};
+use chrono_tz::Tz;
 use diesel::sql_types::Time;
 use serenity::{client::Context, model::prelude::command::CommandOptionType};
 use std::sync::Arc;
@@ -16,8 +17,11 @@ use serenity::{
 use crate::{
     commands::{AutoComplete, CommandError, SlashCommand},
     config::Config,
+    models::NewReservation,
+    ops::user_ops,
     schedule::{Schedule, TimeSlot},
-    utils::get_option::{self, get_option}, models::NewReservation, schema::reservations, ops::user_ops,
+    schema::reservations,
+    utils::get_option::{self, get_option},
 };
 pub(crate) const COMMAND_NAME: &'static str = "reserve";
 pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
@@ -40,11 +44,6 @@ pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApp
         })
 }
 
-fn get_date(){
-
-}
-
-
 
 #[derive(Debug)]
 pub struct ReserveCommand;
@@ -57,7 +56,7 @@ impl ReserveCommand {
 impl SlashCommand for ReserveCommand {
     fn config(&self) -> crate::commands::CommandConfig {
         crate::commands::CommandConfig {
-            accessLevel: crate::commands::AccessLevels::ADMIN,
+            accessLevel: crate::commands::AccessLevels::TRADER,
             ..Default::default()
         }
     }
@@ -71,33 +70,42 @@ impl SlashCommand for ReserveCommand {
         let Ok(start_time) = NaiveDateTime::parse_from_str(&get_option::<String>(&mut interaction.data.options.iter(), "start_time")?, "%d/%m/%Y %H:%M") else{
             return Err(CommandError::IncorrectParameters("Failed to parse start time as Date".into()));
         };
-        //let start_time = start_time.and_local_timezone(Utc);        
+        //let start_time = start_time.and_local_timezone(Utc);
         let Ok(end_time) = NaiveDateTime::parse_from_str(&get_option::<String>(&mut interaction.data.options.iter(), "end_time")?, "%d/%m/%Y %H:%M") else{
             return Err(CommandError::IncorrectParameters("Failed to parse start time as Date".into()));
         };
-        //let end_time = end_time.and_local_timezone(Utc);   
+        //let end_time = end_time.and_local_timezone(Utc);
 
-
-        let out = Schedule::create_reservation(NewReservation{
+        let out = Schedule::create_reservation(NewReservation {
             start_time,
             end_time,
-            user_id: i64::from(interaction.user.id)
+            user_id: i64::from(interaction.user.id),
         })?;
 
-        if out{
+        if out {
             interaction
-            .edit_original_interaction_response(&ctx.http, |response| response.content(format!("Reservation Created for {} to {}",start_time.to_string(),end_time.to_string())))
-            .await?;
-        }else{
+                .edit_original_interaction_response(&ctx.http, |response| {
+                    response.content(format!(
+                        "Reservation Created for {} to {}",
+                        start_time.to_string(),
+                        end_time.to_string()
+                    ))
+                })
+                .await?;
+        } else {
             interaction
-            .edit_original_interaction_response(&ctx.http, |response| response.content(format!("Reservation Failed to create for {} to {}",start_time.to_string(),end_time.to_string())))
-            .await?;
+                .edit_original_interaction_response(&ctx.http, |response| {
+                    response.content(format!(
+                        "Reservation Failed to create for {} to {}",
+                        start_time.to_string(),
+                        end_time.to_string()
+                    ))
+                })
+                .await?;
         }
 
         Ok(())
     }
-
-       
 }
 #[async_trait]
 impl AutoComplete for ReserveCommand {
@@ -108,11 +116,6 @@ impl AutoComplete for ReserveCommand {
         ctx: Context,
         config: Arc<Config>,
     ) -> Result<(), CommandError> {
-
-
-
-
-
         let mut options = interaction.data.options.iter();
 
         let focused = options.clone().find(|opt| opt.focused);
@@ -122,28 +125,35 @@ impl AutoComplete for ReserveCommand {
         };
 
         let formatted: Vec<String>;
-
+        let time_zone = match config.get::<String>("schedule","timezone")? {
+            Some(tz_str) => tz_str.parse::<Tz>().unwrap_or(Tz::UTC),
+            None => Tz::UTC
+        };
         if focused.name == "start_time" {
             let start_time = get_option::<String>(&mut options, "start_time")?;
-            let time_slots = Schedule::open_time_slots(None,&config)?;
+            let time_slots = Schedule::open_time_slots(None, &config)?;
 
             formatted = time_slots
                 .iter()
                 .filter_map(|slot| {
                     match slot{
-                        TimeSlot::OPEN(time) => {
-                            let str = time.format("%d/%m/%Y %H:%M").to_string();
-                            if str.contains(&start_time) {
-                                Some(str)
+                        TimeSlot::OPEN(mut time) => {
+                            let tz_time = time.with_timezone(&time_zone);
+                            let value = tz_time.format("%d/%m/%Y %H:%M").to_string();
+                            if value.contains(&start_time) {
+                                Some(value)
                             } else {
                                 None
                             }
                         },
                         TimeSlot::RESERVED { reservation } => {
+
+                            let start = reservation.start_time.and_local_timezone(Utc).unwrap().with_timezone(&time_zone);
+                            let end = reservation.end_time.and_local_timezone(Utc).unwrap().with_timezone(&time_zone);
                             let Ok(user) = user_ops::find_user(reservation.user_id) else{
-                                return  Some(format!("reserved by {} at {} till {}",reservation.id,reservation.start_time.format("%d/%m/%Y %H:%M"),reservation.end_time.format("%d/%m/%Y %H:%M")));
+                                return  Some(format!("reserved by {} at {} till {}",reservation.id,start.format("%d/%m/%Y %H:%M"),end.format("%d/%m/%Y %H:%M")));
                             };
-                            Some(format!("reserved by {} at {} till {}",user.tag,reservation.start_time.format("%d/%m/%Y %H:%M"),reservation.end_time.format("%d/%m/%Y %H:%M")))
+                            Some(format!("reserved by {} at {} till {}",user.tag,start.format("%d/%m/%Y %H:%M"),end.format("%d/%m/%Y %H:%M")))
                         }
                     }
                     
@@ -155,13 +165,14 @@ impl AutoComplete for ReserveCommand {
             };
 
             let start_time = start_time.and_local_timezone(Utc).unwrap();
-            let time_slots = Schedule::open_time_slots(Some(start_time),&config)?;
+            let time_slots = Schedule::open_time_slots(Some(start_time), &config)?;
 
             let end_time = get_option::<String>(&mut options, "end_time")?;
             formatted = Box::new(time_slots.iter().filter_map(|slot| {
                 match slot{
                     TimeSlot::OPEN(time) => {
-                        let value = time.format("%d/%m/%Y %H:%M").to_string();
+                        let tz_time = time.with_timezone(&time_zone);
+                        let value = tz_time.format("%d/%m/%Y %H:%M").to_string();
                         if time < &start_time {
                             None
                         } else if value.contains(&end_time) {
@@ -171,10 +182,13 @@ impl AutoComplete for ReserveCommand {
                         }
                     },
                     TimeSlot::RESERVED { reservation } => {
+                        let start = reservation.start_time.and_local_timezone(Utc).unwrap().with_timezone(&time_zone);
+                        let end = reservation.end_time.and_local_timezone(Utc).unwrap().with_timezone(&time_zone);
+
                         let Ok(user) = user_ops::find_user(reservation.user_id) else{
-                            return  Some(format!("reserved by {} at {} till {}",reservation.id,reservation.start_time.format("%d/%m/%Y %H:%M"),reservation.end_time.format("%d/%m/%Y %H:%M")));
+                            return  Some(format!("reserved by {} at {} till {}",reservation.id,start.format("%d/%m/%Y %H:%M"),end.format("%H:%M")));
                         };
-                        Some(format!("reserved by {} at {} till {}",user.tag,reservation.start_time.format("%d/%m/%Y %H:%M"),reservation.end_time.format("%d/%m/%Y %H:%M")))
+                        Some(format!("reserved by {} at {} till {}",user.tag,start.format("%d/%m/%Y %H:%M"),end.format("%H:%M")))
                     }
                 }
                 

@@ -1,4 +1,5 @@
 use arc_swap::ArcSwapAny;
+use diesel::RunQueryDsl;
 use serenity::{
     builder::CreateEmbed,
     client::Context,
@@ -20,7 +21,7 @@ use serenity::{
 use crate::{
     commands::{AutoComplete, CommandConfig, CommandError, SlashCommand},
     config::{Config, ValueType},
-    models,
+    models::{self},
     ops::config_ops::{self, Operations},
     utils::get_option::get_option,
 };
@@ -40,7 +41,7 @@ impl ListConfigCommand {
 impl SlashCommand for ListConfigCommand {
     fn config(&self) -> CommandConfig {
         CommandConfig {
-            accessLevel: crate::commands::AccessLevels::ADMIN,
+            accessLevel: crate::commands::AccessLevels::TRADER,
             ..Default::default()
         }
     }
@@ -59,7 +60,7 @@ impl SlashCommand for ListConfigCommand {
                 let mut embed = CreateEmbed::default();
                 embed.title(key);
                 value.iter().for_each(|(key, value)| {
-                    embed.field(key, format!("{value:?}"), false);
+                    embed.field(key, format!("{value:#?}"), false);
                 });
                 embed
             })

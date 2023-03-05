@@ -1,4 +1,4 @@
-use diesel::{RunQueryDsl, QueryDsl};
+use diesel::{QueryDsl, RunQueryDsl};
 
 use crate::models::User;
 use crate::schema::users::dsl::users;
@@ -13,7 +13,6 @@ pub fn handle(op: Operations) -> Result<(), diesel::result::Error> {
         Operations::CreateUser(user) => {
             create_user(user)?;
         }
-       
     }
     Ok(())
 }

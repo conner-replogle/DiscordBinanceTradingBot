@@ -1,10 +1,10 @@
-use arc_swap::ArcSwapAny;
+use arc_swap::{ArcSwap, ArcSwapAny};
 use binance::account::Account;
 use diesel::IntoSql;
-use serenity::{client::Context, model::prelude::component::ButtonStyle};
+use serenity::{client::Context, model::prelude::{component::ButtonStyle, command::CommandOptionType}};
 use std::{sync::Arc, time::Duration};
-use tracing::{debug, warn};
-
+use tracing::{debug, warn, trace};
+use tokio::sync::RwLock;
 use serenity::{
     async_trait,
     builder::CreateApplicationCommand,
@@ -14,21 +14,28 @@ use serenity::{
 };
 
 use crate::{
+    binance_wrapped::BinanceWrapped,
     commands::{CommandError, SlashCommand},
-    config::{Config, ValueType},
+    config::{Config, ValueType}, utils::get_option::get_option,
 };
 pub(crate) const COMMAND_NAME: &'static str = "sell";
 pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
     command
         .name(COMMAND_NAME)
         .description("buy BTC at either market or a fixed price")
+        .create_option(|opt|
+            opt.name("price")
+            .description("price to buy at leave blank for market")
+            .kind(CommandOptionType::Number)
+            //.set_autocomplete(true)
+        )
 }
 
 pub struct SellCommand {
-    binance: Account,
+    binance: Arc<RwLock<BinanceWrapped>>,
 }
 impl SellCommand {
-    pub fn new(binance: Account) -> Self {
+    pub fn new(binance: Arc<RwLock<BinanceWrapped>>) -> Self {
         SellCommand { binance }
     }
 }
@@ -49,15 +56,21 @@ impl SlashCommand for SellCommand {
     ) -> Result<(), CommandError> {
         let config = config.load();
         debug!("Executing Sell Command");
-        let Ok(btc_free_balance) = format!("{:.6}",self.binance.get_balance("BTC")?.free).parse::<f64>() else{
-            return Err(CommandError::ParsingDataError("Parsing Market Data error".into()));
-        };
-        debug!("Sending buy order with {btc_free_balance}");
+        let binance = self.binance.read().await;
 
+        let price = match get_option::<f32>(&mut interaction.data.options.iter(), "price"){
+            Ok(price) => Some(price),
+            Err(err) => {
+                warn!("Error parsing price {err}");
+                None
+            }
+        };
+        let msg = format!("Confirm placing order at {}",if price.is_some() {price.unwrap().to_string()}else{"Market Price".into()});
+        trace!(msg);
         interaction
             .edit_original_interaction_response(&ctx.http, |response| {
                 response
-                    .content("Confirm placing order at Market Price")
+                    .content(msg)
                     .components(|c| {
                         c.create_action_row(|row| {
                             row.create_button(|button| {
@@ -78,12 +91,9 @@ impl SlashCommand for SellCommand {
             .await?;
         let message = interaction.get_interaction_response(&ctx).await.unwrap();
 
-        let timeout = match config.get("trading", "sell_timeout_s") {
-            ValueType::INT(Some(int)) => int,
-            val => {
-                warn!("config trading/buy_timeout_s does not contain a value {val:?}");
-                60
-            }
+        let timeout = match config.get("trading", "sell_timeout_s")? {
+            Some(int) => int,
+            None => 60,
         };
 
         let a = match message
@@ -103,8 +113,11 @@ impl SlashCommand for SellCommand {
                 return Ok(());
             }
         };
+        trace!("Recieved button response");
+
         if a.data.custom_id == "confirmed" {
-            let order = self.binance.market_sell("BTCUSDT", btc_free_balance)?;
+            trace!("sending sell");
+            let order = binance.sell(price, None)?;//TODO ADD PRICE PARAM
             interaction
                 .edit_original_interaction_response(&ctx.http, |response| {
                     response

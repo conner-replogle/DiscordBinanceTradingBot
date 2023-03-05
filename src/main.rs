@@ -1,7 +1,10 @@
+mod binance_wrapped;
 mod commands;
 mod config;
 mod db;
+mod error;
 mod event_handler;
+mod interval_handler;
 mod models;
 mod ops;
 mod schedule;
@@ -11,6 +14,7 @@ use arc_swap::ArcSwap;
 use binance::account::Account;
 use binance::api::Binance;
 use binance::market::Market;
+use binance_wrapped::BinanceWrapped;
 use commands::config::status::StatusCommand;
 use config::Config;
 use dotenv::dotenv;
@@ -25,6 +29,7 @@ use tracing::{debug, error, info, instrument, span, trace, Level};
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{fmt, EnvFilter};
+use tokio::sync::RwLock;
 
 use crate::commands::config::create_user::CreateUserCommand;
 use crate::commands::trading::balance::BalanceCommand;
@@ -55,15 +60,10 @@ async fn main() {
     let token = env::var("TOKEN").expect("Expected a token in the environment");
 
     //Connect to binance accounts
-    let binance_api = env::var("BINANCE_API").expect("Expected a binance_api in the environment");
-    let binance_secret =
-        env::var("BINANCE_SECRET").expect("Expected a binance_secret in the environment");
+    let mut acc = BinanceWrapped::new(config.clone());
+    acc.load_account();
 
-    let binance: Account = Binance::new_with_config(
-        Some(binance_api),
-        Some(binance_secret),
-        &binance::config::Config::default().set_rest_api_endpoint("https://testnet.binance.vision"),
-    );
+    let binance = Arc::new(RwLock::from(acc));
     let market: Market = Binance::new_with_config(
         None,
         None,
@@ -86,5 +86,6 @@ async fn main() {
             error!("Discord Bot Error {err}")
         }
     });
+
     thread.await.unwrap()
 }

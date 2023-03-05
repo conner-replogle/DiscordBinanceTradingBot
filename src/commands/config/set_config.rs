@@ -90,87 +90,70 @@ impl SlashCommand for SetConfigCommand {
 
         trace!("Recieved Options Section:{section} Key:{key} Value:{value}");
 
-        match config_load.get(&section, &key) {
-            ValueType::STRING(previous) => {
+        match config_load.get_type(&section, &key)? {
+            ValueType::STRING => {
+                let old_value = config_load.get::<String>(&section, &key)?;
+
+                let Ok(value) = value.parse::<String>() else{
+                    return Err(CommandError::IncorrectParameters("Expected String".into()));
+                };
                 //update config
-                config_ops::handle(Operations::UpdateConfig(models::Config {
+                config_ops::handle(Operations::UpdateConfig(models::UpdateConfig {
                     section: section.clone(),
                     key: key.clone(),
-                    value_type: ValueType::STRING as i32,
                     value: Some(value.clone()),
                 }))?;
                 interaction.edit_original_interaction_response(&ctx.http, |response| {
-                    response.content(format!("Updated Config at {section}/{key} previous:{previous:?} new:{value:?}"))
+                    response.content(format!("Updated Config at {section}/{key} previous:{old_value:?} new:{value:?}"))
                 }).await?;
             }
-            ValueType::INT(previous) => {
-                let Ok(num) = value.parse::<i32>() else {
-                    return Err(CommandError::IncorrectParameters("Expected Number".into()));
-                };
+            ValueType::INT => {
+                let old_value = config_load.get::<i32>(&section, &key)?;
 
+                let Ok(value) = value.parse::<i32>() else{
+                    return Err(CommandError::IncorrectParameters("Expected int".into()));
+                };
                 //update config
-                config_ops::handle(Operations::UpdateConfig(models::Config {
+                config_ops::handle(Operations::UpdateConfig(models::UpdateConfig {
                     section: section.clone(),
                     key: key.clone(),
-                    value_type: ValueType::INT as i32,
-                    value: Some(num.to_string()),
+                    value: Some(value.to_string()),
                 }))?;
-                interaction
-                    .edit_original_interaction_response(&ctx.http, |response| {
-                        response.content(format!(
-                            "Updated Config at {section}/{key} previous:{previous:?} new:{num:?}"
-                        ))
-                    })
-                    .await?;
+                interaction.edit_original_interaction_response(&ctx.http, |response| {
+                    response.content(format!("Updated Config at {section}/{key} previous:{old_value:?} new:{value:?}"))
+                }).await?;
             }
-            ValueType::BIGINT(previous) => {
-                let Ok(num) = value.parse::<i64>() else {
-                    return Err(CommandError::IncorrectParameters("Expected  Big Number".into()));
-                };
+            ValueType::BIGINT => {
+                let old_value = config_load.get::<i64>(&section, &key)?;
 
+                let Ok(value) = value.parse::<i64>() else{
+                    return Err(CommandError::IncorrectParameters("Expected bigint".into()));
+                };
                 //update config
-                config_ops::handle(Operations::UpdateConfig(models::Config {
+                config_ops::handle(Operations::UpdateConfig(models::UpdateConfig {
                     section: section.clone(),
                     key: key.clone(),
-                    value_type: ValueType::BIGINT as i32,
-                    value: Some(num.to_string()),
+                    value: Some(value.to_string()),
                 }))?;
-                interaction
-                    .edit_original_interaction_response(&ctx.http, |response| {
-                        response.content(format!(
-                            "Updated Config at {section}/{key} previous:{previous:?} new:{num:?}"
-                        ))
-                    })
-                    .await?;
+                interaction.edit_original_interaction_response(&ctx.http, |response| {
+                    response.content(format!("Updated Config at {section}/{key} previous:{old_value:?} new:{value:?}"))
+                }).await?;
             }
-            ValueType::BOOL(previous) => {
-                let Ok(bo) = value.parse::<bool>() else {
-                    return Err(CommandError::IncorrectParameters("Expected Number".into()));
-                };
+            ValueType::BOOL => {
+                let old_value = config_load.get::<bool>(&section, &key)?;
 
+                let Ok(value) = value.parse::<bool>() else{
+                    return Err(CommandError::IncorrectParameters("Expected bool".into()));
+                };
                 //update config
-                config_ops::handle(Operations::UpdateConfig(models::Config {
+                config_ops::handle(Operations::UpdateConfig(models::UpdateConfig {
                     section: section.clone(),
                     key: key.clone(),
-                    value_type: ValueType::BOOL as i32,
-                    value: Some(bo.to_string()),
+                    value: Some(value.to_string()),
                 }))?;
-                interaction
-                    .edit_original_interaction_response(&ctx.http, |response| {
-                        response.content(format!(
-                            "Updated Config at {section}/{key} previous:{previous:?} new:{bo:?}"
-                        ))
-                    })
-                    .await?;
-            }
-
-            ValueType::NULL => {
-                interaction
-                    .edit_original_interaction_response(&ctx.http, |response| {
-                        response.content("Configuration does not exist")
-                    })
-                    .await?;
-                return Ok(());
+                interaction.edit_original_interaction_response(&ctx.http, |response| {
+                    response.content(format!("Updated Config at {section}/{key} previous:{old_value:?} new:{value:?}"))
+                }).await?;
             }
         }
         match Config::load() {

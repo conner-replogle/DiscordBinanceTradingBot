@@ -45,7 +45,7 @@ impl CreateUserCommand {
 impl SlashCommand for CreateUserCommand {
     fn config(&self) -> crate::commands::CommandConfig {
         crate::commands::CommandConfig {
-            accessLevel: crate::commands::AccessLevels::TRADER,
+            accessLevel: crate::commands::AccessLevels::ADMIN,
             ..Default::default()
         }
     }

@@ -1,6 +1,10 @@
-use arc_swap::{ArcSwapAny, Guard};
-use serenity::client::Context;
+use arc_swap::ArcSwapAny;
+use chrono::{NaiveDateTime, Utc};
+use chrono_tz::Tz;
+use diesel::sql_types::Time;
+use serenity::{client::Context, model::prelude::command::CommandOptionType};
 use std::sync::Arc;
+use tracing::instrument;
 
 use serenity::{
     async_trait,
@@ -11,31 +15,39 @@ use serenity::{
 };
 
 use crate::{
-    commands::{CommandError, SlashCommand},
+    commands::{AutoComplete, CommandError, SlashCommand},
     config::Config,
+    models::NewReservation,
+    ops::user_ops,
+    schedule::{Schedule, TimeSlot},
+    schema::reservations,
+    utils::get_option::{self, get_option},
 };
-pub(crate) const COMMAND_NAME: &'static str = "status";
+pub(crate) const COMMAND_NAME: &'static str = "summary";
 pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
     command
         .name(COMMAND_NAME)
-        .description("Check the bot's status")
+        .description("get employee summaries")
+
 }
+
+
 #[derive(Debug)]
-pub struct StatusCommand;
-impl StatusCommand {
+pub struct SummaryCommand;
+impl SummaryCommand {
     pub fn new() -> Self {
-        StatusCommand {}
+        SummaryCommand {}
     }
 }
 #[async_trait]
-impl SlashCommand for StatusCommand {
+impl SlashCommand for SummaryCommand {
     fn config(&self) -> crate::commands::CommandConfig {
         crate::commands::CommandConfig {
-            accessLevel: crate::commands::AccessLevels::ADMIN,
+            accessLevel: crate::commands::AccessLevels::TRADER,
             ..Default::default()
         }
     }
-
+    #[instrument(skip_all, name = "Reserve Command", level = "trace")]
     async fn run(
         &self,
         interaction: ApplicationCommandInteraction,
@@ -43,12 +55,7 @@ impl SlashCommand for StatusCommand {
         config: Arc<ArcSwapAny<Arc<Config>>>,
     ) -> Result<(), CommandError> {
 
-
-        //Check if order handler is up
-        //Check if rrservation handler is up
-        interaction
-            .edit_original_interaction_response(&ctx.http, |response| response.content("Ok"))
-            .await?;
+        
         Ok(())
     }
 }

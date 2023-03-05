@@ -1,5 +1,5 @@
 use arc_swap::{ArcSwap, ArcSwapAny, Guard};
-use binance::{account::Account, market::Market};
+use binance::{account::Account, market::Market, model::SymbolPrice};
 use plotters::{
     backend::PixelFormat,
     prelude::{BitMapBackend, ChartBuilder, DrawingArea, IntoDrawingArea, PathElement},
@@ -10,11 +10,11 @@ use serenity::{
     builder::CreateComponents,
     client::Context,
     futures::StreamExt,
-    model::prelude::{component::ButtonStyle, AttachmentId, AttachmentType, EmbedImage, Message},
+    model::prelude::{component::{ButtonStyle, InputTextStyle}, AttachmentId, AttachmentType, EmbedImage, Message},
     FutureExt,
 };
 use std::{borrow::Cow, future::IntoFuture, path::Path, sync::Arc, task::Poll, time::Duration};
-use tokio::{fs::File, pin, select, time};
+use tokio::{fs::File,sync::RwLock, pin, select, time};
 use tracing::{debug, instrument, warn};
 
 use serenity::{
@@ -23,6 +23,7 @@ use serenity::{
 };
 
 use crate::{
+    binance_wrapped::BinanceWrapped,
     commands::{CommandError, SlashCommand},
     config::{Config, ValueType},
 };
@@ -35,12 +36,12 @@ pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApp
 }
 
 pub struct PriceCommand {
-    binance: Account,
+    binance: Arc<RwLock<BinanceWrapped>>,
     market: Market,
 }
 
 impl PriceCommand {
-    pub fn new(binance: Account, market: Market) -> Self {
+    pub fn new(binance: Arc<RwLock<BinanceWrapped>>, market: Market) -> Self {
         PriceCommand { binance, market }
     }
 }
@@ -62,7 +63,7 @@ impl SlashCommand for PriceCommand {
     ) -> Result<(), CommandError> {
         let config = config.load();
         debug!("Executiuting Price Command");
-
+        let binance = self.binance.read().await;
         let mut msg = interaction
             .get_interaction_response(&ctx.http)
             .await
@@ -73,16 +74,23 @@ impl SlashCommand for PriceCommand {
 
         let mut interval = time::interval(Duration::from_millis(1000));
         let mut prices = vec![];
-        let len = match config.get("trading", "price_command_price_len") {
-            ValueType::INT(Some(a)) => a,
-            _ => {
-                warn!("Trading/price_command_price_len did not have a value");
-                60
-            }
+
+        let len = match config.get("trading", "price_command_price_len")? {
+            Some(int) => int,
+            None => 60,
         };
+        let symbol = match config.get::<String>("trading", "symbol")? {
+            Some(symbol) => symbol,
+            None => "BTCUSDT".into(),
+        };
+        let transaction = binance.get_transaction()?;
+        let mut set_price: Option<f64> = None;
+        let mut price = self.market.get_price(&symbol).unwrap();
         loop {
             let a = msg.clone();
             let id = a.attachments.first();
+            let mut components;
+
             if let Some(Some(a)) = interaction_future.next().now_or_never() {
                 match a.data.custom_id.as_str() {
                     "cancel" => {
@@ -99,25 +107,109 @@ impl SlashCommand for PriceCommand {
                         return Ok(());
                     }
                     "buy" => {
-                        //TODO
+                        binance.buy(Some(price.price as f32), None)?;
                         msg.edit(&ctx.http, |a| {
                             if let Some(uid) = id {
                                 a.remove_existing_attachment(uid.id);
                             }
-                            a.content("Price Closed")
+                            a.content(format!("Bought @${}",price.price))
                                 .set_embeds(Vec::new())
                                 .set_components(CreateComponents::default())
                         })
                         .await?;
-
                         return Ok(());
                     }
-
+                    "market_buy" => {
+                        //TODO finish this shi
+                        binance.buy(None, None)?;
+                        msg.edit(&ctx.http, |a| {
+                            if let Some(uid) = id {
+                                a.remove_existing_attachment(uid.id);
+                            }
+                            a.content("Bought @Market")
+                                .set_embeds(Vec::new())
+                                .set_components(CreateComponents::default())
+                        })
+                        .await?;
+                        return Ok(());
+                    }
+                    "market_sell" => {
+                        //TODO finish this shi
+                        binance.sell(None, None)?;
+                        msg.edit(&ctx.http, |a| {
+                            if let Some(uid) = id {
+                                a.remove_existing_attachment(uid.id);
+                            }
+                            a.content("Sold @Market")
+                                .set_embeds(Vec::new())
+                                .set_components(CreateComponents::default())
+                        })
+                        .await?;
+                        return Ok(());
+                    }
+                    "sell" => {
+                        binance.sell(Some(price.price as f32), None)?;
+                        msg.edit(&ctx.http, |a| {
+                            if let Some(uid) = id {
+                                a.remove_existing_attachment(uid.id);
+                            }
+                            a.content(format!("Sold @${}",price.price))
+                                .set_embeds(Vec::new())
+                                .set_components(CreateComponents::default())
+                        })
+                        .await?;
+                        return Ok(());
+                    }
                     _ => {}
                 }
             }
+            price = self.market.get_price(&symbol).unwrap();
+
+            if transaction.as_ref().is_some(){
+                let mut c = CreateComponents::default();
+                c.create_action_row(|r|
+                    
+                    r.create_button(|b|
+                        b.custom_id("sell")
+                        .label(format!("Sell@${:.5}",price.price))
+                        .style(ButtonStyle::Success)
+                    ).create_button(|b|
+                        b.custom_id("market_sell")
+                        .label("Market Sell")
+                        .style(ButtonStyle::Success)
+                    )
+                    .create_button(|b|
+                        b.custom_id("cancel")
+                        .label("Cancel")
+                        .style(ButtonStyle::Danger)
+                    )           
+                );
+                components = Some(c)
+            }else{
+                let mut c = CreateComponents::default();
+                c.create_action_row(|r|
+                r.create_button(|b|
+                    b.custom_id("buy")
+                    .label(format!("Buy@${:.5}",price.price))
+                    .style(ButtonStyle::Success)
+                ).create_button(|b|
+                    b.custom_id("market_buy")
+                    .label("Market Buy")
+                    .style(ButtonStyle::Success)
+                )
+                .create_button(|b|
+                    b.custom_id("cancel")
+                    .label("Cancel")
+                    .style(ButtonStyle::Danger)
+                )
+                );
+                components = Some(c)
+            }
+                
+               
+            
             //MAKE SYMBOL A CONFIG
-            let price = self.market.get_price("BTCUSDT").unwrap();
+          
             prices.push(price.price as f32);
             if prices.len() > len as usize {
                 prices.remove(0);
@@ -130,23 +222,19 @@ impl SlashCommand for PriceCommand {
                 }
 
                 m.embed(|e| {
-                    e.image("attachment://image.png")
-                        .field("Current Price", price.price, false)
+                    e.image("attachment://image.png");
+                    if let Some(transaction) =&transaction{
+                        if let Some(price) = transaction.buyAvgPrice{
+                            e.field("Bought At Price", format!("${:.5}",price), false);
+
+                        }
+                    }
+                    e
                 })
                 .content("")
                 .attachment(AttachmentType::Path(Path::new("data/image.png")))
-                .components(|c| {
-                    c.create_action_row(|r| {
-                        r.create_button(|b| {
-                            b.custom_id("cancel")
-                                .label("Cancel")
-                                .style(ButtonStyle::Danger)
-                        })
-                        .create_button(|b| {
-                            b.custom_id("buy").label("Buy").style(ButtonStyle::Success)
-                        })
-                    })
-                })
+                .set_components(components.unwrap_or(CreateComponents::default()))
+                
             })
             .await
             .unwrap();
@@ -161,16 +249,17 @@ impl SlashCommand for PriceCommand {
 fn draw_canvas(prices: &Vec<f32>) -> Result<(), Box<dyn std::error::Error>> {
     let (x, y) = (720, 480);
     let root = BitMapBackend::new("data/image.png", (x, y)).into_drawing_area();
-    root.fill(&BLACK)?;
+    root.fill(&WHITE)?;
+    
     let mut chart = ChartBuilder::on(&root)
         .caption(
-            "Current Stock Data",
-            ("sans-serif", 50).into_font().color(&WHITE),
+            "BTCUSDT",//TODO CHANGE THIS BASED ON SYMBOL
+            ("sans-serif", 50).into_font().color(&BLACK),
         )
         .margin(5)
-        .x_label_area_size(30)
+        .x_label_area_size(50)
         .y_label_area_size(50)
-        
+    
         .build_cartesian_2d(
             0 as f32..(prices.len()) as f32,
             *(prices
@@ -179,7 +268,7 @@ fn draw_canvas(prices: &Vec<f32>) -> Result<(), Box<dyn std::error::Error>> {
                 .unwrap_or(&10000f32)) as f32
                 ..*(prices
                     .iter()
-                    .max_by(|x, y| x.total_cmp(y))
+                    .max_by(|x, y| x.total_cmp(y))//TODO FIX THIS MESS
                     .unwrap_or(&30000f32)),
         )?;
 
@@ -190,13 +279,13 @@ fn draw_canvas(prices: &Vec<f32>) -> Result<(), Box<dyn std::error::Error>> {
             prices.iter().enumerate().map(|(i, x)| (i as f32, *x)),
             &RED,
         ))?
-        .label("BTCUSDT");
+        .label(format!("{:.6}",prices.last().unwrap_or(&0.0)));
 
     chart
         .configure_series_labels()
-        .label_font(("sans-serif", 30).into_font().color(&WHITE))
-        .background_style(&BLACK.mix(0.8))
-        .border_style(&WHITE)
+        .label_font(("sans-serif", 30).into_font().color(&BLACK))
+        .background_style(&WHITE.mix(0.8))
+        .border_style(&BLACK)
         .draw()?;
 
     root.present()?;

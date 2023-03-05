@@ -23,6 +23,8 @@ pub enum CommandError {
     SerenityError(#[from] serenity::Error),
     #[error("Binance Error")]
     BinanceError(#[from] binance::errors::Error),
+    #[error("TradingBot Error")]
+    TradingBotError(#[from] crate::error::TradingBotError),
     #[error("Diesel Result Error")]
     DieselError(#[from] diesel::result::Error),
     #[error("Diesel Connection Error")]

@@ -1,7 +1,8 @@
-use arc_swap::{ArcSwapAny, Guard};
+use arc_swap::{ArcSwap, ArcSwapAny, Guard};
 use binance::account::Account;
 use serenity::client::Context;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 
 use serenity::{
     async_trait,
@@ -12,6 +13,7 @@ use serenity::{
 };
 
 use crate::{
+    binance_wrapped::BinanceWrapped,
     commands::{CommandError, SlashCommand},
     config::Config,
 };
@@ -24,10 +26,10 @@ pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApp
 }
 
 pub struct BalanceCommand {
-    binance: Account,
+    binance: Arc<RwLock<BinanceWrapped>>,
 }
 impl BalanceCommand {
-    pub fn new(binance: Account) -> Self {
+    pub fn new(binance: Arc<RwLock<BinanceWrapped>>) -> Self {
         BalanceCommand { binance }
     }
 }
@@ -46,8 +48,10 @@ impl SlashCommand for BalanceCommand {
         ctx: Context,
         config: Arc<ArcSwapAny<Arc<Config>>>,
     ) -> Result<(), CommandError> {
-        let btc = self.binance.get_balance("BTC")?;
-        let usdt = self.binance.get_balance("USDT")?;
+        let binance = self.binance.read().await;
+        
+        let (base,quote) = binance.get_balance()?;
+
 
         interaction
             .edit_original_interaction_response(&ctx.http, |response| {
@@ -55,13 +59,13 @@ impl SlashCommand for BalanceCommand {
                     embed
                         .title("Account Balances")
                         .field(
-                            "BTC",
-                            format!("Free {} Locked {}", btc.free, btc.locked),
+                            format!("{}",base.asset),
+                            format!("Free {} Locked {}", base.free, base.locked),
                             false,
                         )
                         .field(
-                            "USDT",
-                            format!("Free {} Locked {}", usdt.free, usdt.locked),
+                            format!("{}",quote.asset),
+                            format!("Free {} Locked {}", quote.free, quote.locked),
                             false,
                         )
                 })
