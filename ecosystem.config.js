@@ -7,9 +7,9 @@ module.exports = {
     production : {
        "user" : "deployment",
        "host" : "192.46.229.57",
-       "ref"  : "origin/master",
-       "repo" : "git@github.com:Username/repository.git",
-       "path" : "/var/www/my-repository",
+       "ref"  : "origin/production",
+       "repo" : "git@github.com:conner-replogle/upwork_reda_shadi_rust.git",
+       "path" : "/home/deployment/trading_bot",
        "post-deploy" : "npm install"
     }
   }
