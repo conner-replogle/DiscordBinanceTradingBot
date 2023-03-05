@@ -10,7 +10,7 @@ module.exports = {
        "ref"  : "origin/production",
        "repo" : "git@github.com:conner-replogle/upwork_reda_shadi_rust.git",
        "path" : "/home/deployment/trading_bot",
-       "post-deploy" : "npm install"
+       "post-deploy" : "cargo build"
     }
   }
 }
