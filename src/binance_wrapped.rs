@@ -123,6 +123,7 @@ impl BinanceWrapped{
                         return Err(TradingBotError::BinanceAccountMissing);
                     }
                     err => {
+                        
                         return Err(TradingBotError::DieselError(err));
                     }
                 }

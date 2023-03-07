@@ -55,6 +55,8 @@ impl SlashCommand for ClockCommand {
         ctx: Context,
         config: Arc<ArcSwapAny<Arc<Config>>>,
     ) -> Result<(), CommandError> {
+        trace!("Clock Command");
+
         let account = self.account.read().await;     
         let clocked_in = account.is_clocked_in()?;   
         trace!("Clock {clocked_in:?}");
