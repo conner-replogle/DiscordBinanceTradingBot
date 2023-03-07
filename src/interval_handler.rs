@@ -76,19 +76,11 @@ async fn handle_orders(
         trace!("No Account");
         return Ok(())
     };
-    let Some(clock_stub) = dbinance.is_clocked_in()? else{
-        trace!("Not Clocked In");
-        return Ok(())
-    };
-    
-    let Some(transcation_id) = clock_stub.active_transaction else{
-        trace!("No active transaction");
-        return Ok(())
-    };
-    let transaction: DBTransaction;
+
+    let transaction: Vec<DBTransaction>;
     {
         use crate::schema::transactions::dsl;
-        transaction = dsl::transactions.filter(dsl::id.eq(transcation_id)).first::<DBTransaction>(&mut connection)?;
+        transaction = dsl::transactions.filter(dsl::sellAvgPrice.eq(None)).load::<DBTransaction>(&mut connection)?;
     }
     let Some(symbol) = config.get::<String>("trading", "symbol")? else {
         trace!("No symbol Set");
