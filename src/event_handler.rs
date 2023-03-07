@@ -64,6 +64,7 @@ impl Handler {
 
     #[instrument(skip_all, name = "AutoComplete", level = "trace")]
     async fn auto_complete(&self, ctx: Context, command: AutocompleteInteraction) {
+        trace!("Command Recieved");
         let config = self.config.load();
 
         debug!("Recieved Autocomplete for {}", command.data.name);
