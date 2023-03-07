@@ -77,156 +77,150 @@ async fn handle_orders(
         return Ok(())
     };
 
-    let transaction: Vec<DBTransaction>;
+    let transactions: Vec<DBTransaction>;
     {
         use crate::schema::transactions::dsl;
-        transaction = dsl::transactions.filter(dsl::sellAvgPrice.eq(None)).load::<DBTransaction>(&mut connection)?;
+        transactions = dsl::transactions.filter(dsl::sellAvgPrice.is_null()).get_results::<DBTransaction>(&mut connection)?;
+        trace!("Active Transactions {:?}",transactions);
+
     }
     let Some(symbol) = config.get::<String>("trading", "symbol")? else {
         trace!("No symbol Set");
         return Ok(())
     };
-
-    let order: Order;  
-    if transaction.buyAvgPrice.is_none(){// Check buy Status
-        trace!("Pulling buy order");
-        let balance = dbinance.get_balance()?;
-        let mut ids = transaction.buyOrderIds.split(',');
-
-        
-        let id = transaction.buyOrderIds.split(',').last().unwrap();
-        trace!("Last Buy Order {}",id);
-        if id ==""{
-            return Ok(())
-        }
-        let last_order = id.parse::<u64>().unwrap();
-        order = account.order_status(&symbol, last_order)?;
-        match order.status.as_str(){
-            x if x =="FILLED" || x == "CANCELED"  => {
-                debug!("Buy Order filled");
-                use crate::schema::transactions::dsl;
-                if balance.1.free.parse::<f32>()? + balance.1.locked.parse::<f32>()? <= 5.00{//MAKE CONFIG
-                    //Close buy out
+    for transaction in transactions.iter(){
+        if transaction.buyAvgPrice.is_none(){// Check buy Status
+            trace!("Pulling buy order");
+            let balance = dbinance.get_balance()?;
+            let mut ids = transaction.buyOrderIds.split(',');
+    
+            
+            let id = transaction.buyOrderIds.split(',').last().unwrap();
+            trace!("Last Buy Order {}",id);
+            if id ==""{
+                return Ok(())
+            }
+            let last_order = id.parse::<u64>().unwrap();
+            let order = account.order_status(&symbol, last_order)?;
+            match order.status.as_str(){
+                x if x =="FILLED" || x == "CANCELED"  => {
+                    debug!("Buy Order filled");
                     use crate::schema::transactions::dsl;
-                    trace!("Buy Completed");
-                    let mut orders = Vec::new();
-                    while let Some(order_str) = ids.next(){
-                        let order_id = order_str.parse::<u64>().unwrap();
-                        let order = account.order_status(&symbol, order_id)?;
-                        let ct = order.cummulative_quote_qty.parse::<f64>().unwrap();
-                        let eq = order.executed_qty.parse::<f64>().unwrap();
-                        let price = ct/eq;
-                        let quantity = eq;
-                        if quantity <= 0.0{
-                            continue;
+                    if balance.1.free.parse::<f32>()? + balance.1.locked.parse::<f32>()? <= 5.00{//MAKE CONFIG
+                        //Close buy out
+                        use crate::schema::transactions::dsl;
+                        trace!("Buy Completed");
+                        let mut orders = Vec::new();
+                        while let Some(order_str) = ids.next(){
+                            let order_id = order_str.parse::<u64>().unwrap();
+                            let order = account.order_status(&symbol, order_id)?;
+                            let ct = order.cummulative_quote_qty.parse::<f64>().unwrap();
+                            let eq = order.executed_qty.parse::<f64>().unwrap();
+                            let price = ct/eq;
+                            let quantity = eq;
+                            if quantity <= 0.0{
+                                continue;
+                            }
+                            if price.is_nan(){
+                                continue;
+                            }
+                            orders.push((price,quantity));
                         }
-                        if price.is_nan(){
-                            continue;
+                        trace!("Buy Orders:{:?}",orders);
+                        if orders.len() == 0{
+                            trace!("No Orders");
+                            return Ok(())
                         }
-                        orders.push((price,quantity));
+                        let total_qty = orders.iter().fold(0.0,|n,(_,q)| n+q);
+                        let avgPrice = orders.iter().fold(0.0,|t,(p,q)| 
+                            t+p * (q/total_qty)
+                        );
+                        
+            
+                        debug!("Buy Completed with price {}",avgPrice);
+            
+                        diesel::update(dsl::transactions.filter(dsl::id.eq(transaction.id))).set((dsl::buyReady.eq(false),dsl::sellReady.eq(true),dsl::buyAvgPrice.eq(Some(avgPrice)))).execute(&mut connection)?;
+                    }else{
+                        diesel::update(dsl::transactions.filter(dsl::id.eq(transaction.id))).set(dsl::buyReady.eq(true)).execute(&mut connection)?;
                     }
-                    trace!("Buy Orders:{:?}",orders);
-                    if orders.len() == 0{
-                        trace!("No Orders");
-                        return Ok(())
-                    }
-                    let total_qty = orders.iter().fold(0.0,|n,(_,q)| n+q);
-                    let avgPrice = orders.iter().fold(0.0,|t,(p,q)| 
-                        t+p * (q/total_qty)
-                    );
+                }
+    
+                a => {
+                    error!("Unknown status {a}");
+                }
+            }
+        }else{
+            trace!("Pulling sell order");
+            let balance = dbinance.get_balance()?;
+            let mut ids = transaction.sellOrderIds.split(',');
+    
+            let id = ids.clone().last().unwrap();
+            trace!("Last Sell Order {}",id);
+            if id ==""{
+                return Ok(())
+            }
+            let last_order = id.parse::<u64>().unwrap();
+            let order = account.order_status(&symbol, last_order)?;
+            match order.status.as_str(){
+                x if x == "FILLED" || x ==  "CANCELED" => {
+                    debug!("Sell order filled");
+                    use crate::schema::transactions::dsl;
+                    if balance.0.free.parse::<f32>()? + balance.0.locked.parse::<f32>()? <= 0.0001{//MAKE CONFIG
+                        //Close buy out
+                        use crate::schema::transactions::dsl;
+                        trace!("Sell Completed");
+                        let mut orders = Vec::new();
+                        while let Some(order_str) = ids.next(){
+                            let order_id = order_str.parse::<u64>().unwrap();
+                            let order = account.order_status(&symbol, order_id)?;
+                            let ct = order.cummulative_quote_qty.parse::<f64>().unwrap();
+                            let eq = order.executed_qty.parse::<f64>().unwrap();
+                            let price = ct/eq;
+                            let quantity = eq;
+                            if quantity <= 0.0{
+                                continue;
+                            }
+                            if price.is_nan(){
+                                continue;
+                            }
+                            orders.push((price,quantity));
+                        }
+                        trace!("Sell Orders:{:?}",orders);
+    
+                        let total_qty = orders.iter().fold(0.0,|n,(_,q)| n+q);
+                        let avgPrice = orders.iter().fold(0.0,|t,(p,q)| 
+                            t+p * (q/total_qty)
+                        );
+            
+                        debug!("Sell Completed with price {}",avgPrice);
+            
+            
+                        diesel::update(dsl::transactions.filter(dsl::id.eq(transaction.id))).set((dsl::sellReady.eq(false),dsl::sellAvgPrice.eq(Some(avgPrice)))).execute(&mut connection)?;
                     
-        
-                    debug!("Buy Completed with price {}",avgPrice);
-        
-                    diesel::update(dsl::transactions.filter(dsl::id.eq(transaction.id))).set((dsl::buyReady.eq(false),dsl::sellReady.eq(true),dsl::buyAvgPrice.eq(Some(avgPrice)))).execute(&mut connection)?;
-                }else{
-                    diesel::update(dsl::transactions.filter(dsl::id.eq(transaction.id))).set(dsl::buyReady.eq(true)).execute(&mut connection)?;
+                        
+                  //      DISCONNECT FROM ACTIVE TRANSACTION
+                        trace!("Closing order");
+                        {
+                            use crate::schema::clock_stubs::dsl;
+            
+                            diesel::update(dsl::clock_stubs.filter(dsl::active_transaction.eq(Some(transaction.id)))).set(dsl::active_transaction.eq::<Option<i32>>(None)).execute(&mut connection)?;
+                            debug!("Order Closed");
+                        }
+                    }else{
+                        diesel::update(dsl::transactions.filter(dsl::id.eq(transaction.id))).set(dsl::sellReady.eq(true)).execute(&mut connection)?;
+    
+                    }
+                }
+    
+                a => {
+                    trace!("Unknown status {a}");
                 }
             }
-
-            a => {
-                error!("Unknown status {a}");
-            }
+            
         }
-    }else{
-        trace!("Pulling sell order");
-        let balance = dbinance.get_balance()?;
-        let mut ids = transaction.sellOrderIds.split(',');
-
-        let id = ids.clone().last().unwrap();
-        trace!("Last Sell Order {}",id);
-        if id ==""{
-            return Ok(())
-        }
-        let last_order = id.parse::<u64>().unwrap();
-        order = account.order_status(&symbol, last_order)?;
-        match order.status.as_str(){
-            x if x == "FILLED" || x ==  "CANCELED" => {
-                debug!("Sell order filled");
-                use crate::schema::transactions::dsl;
-                if balance.0.free.parse::<f32>()? + balance.0.locked.parse::<f32>()? <= 0.0001{//MAKE CONFIG
-                    //Close buy out
-                    use crate::schema::transactions::dsl;
-                    trace!("Sell Completed");
-                    let mut orders = Vec::new();
-                    while let Some(order_str) = ids.next(){
-                        let order_id = order_str.parse::<u64>().unwrap();
-                        let order = account.order_status(&symbol, order_id)?;
-                        let ct = order.cummulative_quote_qty.parse::<f64>().unwrap();
-                        let eq = order.executed_qty.parse::<f64>().unwrap();
-                        let price = ct/eq;
-                        let quantity = eq;
-                        if quantity <= 0.0{
-                            continue;
-                        }
-                        if price.is_nan(){
-                            continue;
-                        }
-                        orders.push((price,quantity));
-                    }
-                    trace!("Sell Orders:{:?}",orders);
-
-                    let total_qty = orders.iter().fold(0.0,|n,(_,q)| n+q);
-                    let avgPrice = orders.iter().fold(0.0,|t,(p,q)| 
-                        t+p * (q/total_qty)
-                    );
-        
-                    debug!("Sell Completed with price {}",avgPrice);
-        
-        
-                    diesel::update(dsl::transactions.filter(dsl::id.eq(transaction.id))).set((dsl::sellReady.eq(false),dsl::sellAvgPrice.eq(Some(avgPrice)))).execute(&mut connection)?;
-                
-              //      DISCONNECT FROM ACTIVE TRANSACTION
-                    trace!("Closing order");
-                    {
-                        use crate::schema::clock_stubs::dsl;
-        
-                        diesel::update(dsl::clock_stubs.filter(dsl::id.eq(clock_stub.id))).set(dsl::active_transaction.eq::<Option<i32>>(None)).execute(&mut connection)?;
-                        debug!("Order Closed");
-                    }
-                }else{
-                    diesel::update(dsl::transactions.filter(dsl::id.eq(transaction.id))).set(dsl::sellReady.eq(true)).execute(&mut connection)?;
-
-                }
-            }
-
-            a => {
-                trace!("Unknown status {a}");
-            }
-        }
-        
     }
-   
-   
     return Ok(());
-    
 
-    
-
-
-
-
-    Ok(())
 }
 
 #[instrument(name = "Reservation Handler", skip_all)]
