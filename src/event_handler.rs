@@ -92,16 +92,7 @@ impl Handler {
     async fn command(&self, ctx: Context, command: ApplicationCommandInteraction) {
         let config = self.config.load();
 
-        if let Err(err) = command
-            .create_interaction_response(&ctx.http, |response| {
-                response
-                    .kind(InteractionResponseType::ChannelMessageWithSource)
-                    .interaction_response_data(|message| message.content("Checking permissions..."))
-            })
-            .await
-        {
-            error!("Error executing inital message {err:?}")
-        };
+
         trace!("Received command: {:#?} ", command.data.name);
 
         //TODO MAKE ALL OF THIS DYNAMICALLY GENERATE MACRO ->
@@ -155,6 +146,16 @@ impl Handler {
         let command_config = command_runner.config();
         let guild_id = command.guild_id.unwrap();
         trace!("Checking Access Level");
+        if let Err(err) = command
+        .create_interaction_response(&ctx.http, |response| {
+            response
+                .kind(InteractionResponseType::ChannelMessageWithSource)
+                .interaction_response_data(|message| message.content("Checking permissions...").ephemeral(command_config.ephermal))
+        })
+        .await
+        {
+            error!("Error executing inital message {err:?}")
+        };
 
         match command_config.accessLevel {
             commands::AccessLevels::ADMIN => {
