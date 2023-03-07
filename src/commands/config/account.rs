@@ -62,7 +62,7 @@ pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApp
             .required(true)
             .set_autocomplete(true)
         )
-         
+        
     )
     .create_option(|opt|
         opt.kind(CommandOptionType::SubCommand)
@@ -75,7 +75,7 @@ pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApp
             .required(true)
             .set_autocomplete(true)
         )
-         
+        
     )
 }
 
