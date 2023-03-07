@@ -4,7 +4,7 @@ use chrono_tz::Tz;
 use diesel::{sql_types::Time, RunQueryDsl, QueryDsl};
 use serenity::{client::Context, model::prelude::command::CommandOptionType};
 use std::sync::Arc;
-use tracing::instrument;
+use tracing::{instrument, trace};
 
 use diesel::ExpressionMethods;
 use serenity::{
@@ -81,18 +81,21 @@ impl SlashCommand for SummaryCommand {
                     use crate::schema::transactions::dsl;
                     transactions = dsl::transactions.filter(dsl::clock_stub_id.eq(stub.id)).load::<DBTransaction>(&mut connection)?;
                 } 
+                trace!("Transactions {:?}",transactions);
                 let mut stub_pay = 0.0;
                 for transaction in transactions.iter(){
                     let Some(buy_price ) = transaction.buyAvgPrice else{
                         continue;
                     };
-                    let Some(sell_price ) = transaction.buyAvgPrice else{
+                    let Some(sell_price ) = transaction.sellAvgPrice else{
                         continue;
                     };
                     stub_pay += sell_price - buy_price
                     
                 }
-                total_mins += (end_time - stub.start_time).num_minutes();
+                let mins = (end_time - stub.start_time).num_minutes();
+                trace!("Stub {} Mins {} Pay {}",stub.id,mins,stub_pay);
+                total_mins += mins;
                 total_earned += stub_pay;
 
             }

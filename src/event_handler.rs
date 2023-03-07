@@ -249,8 +249,8 @@ impl Handler {
                     if let Err(err) =
                         send_status(&ctx.clone(), &clone_cmd.clone(), &format!("command failed {err:?}")).await
                     {
-                        error!("Error executing inital command {err:?}")
-                    }; //TODO SEND ERROR TO USER
+                    error!("Error executing inital command {err:?}")
+                    }; 
                 }
             })
             .await

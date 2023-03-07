@@ -26,10 +26,16 @@ pub async fn run(ctx: Arc<Context>, config: Arc<ArcSwap<Config>>, binance: Arc<R
     let ctx_clone = ctx.clone();
     let con_clone = config.clone();
     scheduler.every(1.minute()).run(move || {
-        return handle_errors(handle_reservations(ctx_clone.clone(), con_clone.clone()));
+        return handle_errors(handle_reservations(ctx.clone(), config.clone()));
     });
-    scheduler.every(15.seconds()).run(move || {
-        return handle_errors(handle_orders(ctx.clone(), config.clone(),binance.clone()));
+    let ctx_clone2 = ctx_clone.clone();
+    let con_clone2 = con_clone.clone();
+    scheduler.every(5.seconds()).run(move || {
+        return handle_errors(handle_orders(ctx_clone.clone(), con_clone.clone(),binance.clone()));
+    });
+ 
+    scheduler.every(1.minute()).run(move || {
+        return handle_errors(handle_afk(ctx_clone2.clone(), con_clone2.clone()));
     });
 
     loop {
@@ -42,6 +48,20 @@ async fn handle_errors(fun: impl Future<Output = Result<(), Box<dyn Error>>>) {
         warn!("error occured {} from {:?}", err, err.source());
     }
 }
+
+#[instrument(name = "AFK Handler", skip_all)]
+async fn handle_afk(
+    ctx: Arc<Context>,
+    config: Arc<ArcSwap<Config>>) -> Result<(), Box<dyn Error>> {
+        
+        
+        
+        
+        
+        Ok(())
+}
+
+
 use diesel::ExpressionMethods;
 #[instrument(name = "Order Handler", skip_all)]
 async fn handle_orders(
@@ -238,7 +258,10 @@ async fn handle_reservations(
         None => 15,
     };
 
-    let config_reservation_channel = config.get::<i64>("channels", "reservation_alert")?.unwrap();
+    let Some(config_reservation_channel) = config.get::<i64>("channels", "reservation_alert")? else{
+        warn!("No reservation channel ");
+        return Ok(());
+    };
 
     let next_reservation = dsl::reservations
         .order(dsl::start_time.asc())

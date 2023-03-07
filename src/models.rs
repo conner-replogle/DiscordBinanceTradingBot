@@ -1,4 +1,3 @@
-use chrono::NaiveDateTime;
 use diesel::prelude::*;
 
 use crate::schema::binance_accounts;
@@ -112,7 +111,7 @@ pub struct ClockStub {
     pub active_transaction: Option<i32>
 }
 
-
+#[allow(non_snake_case)]
 #[derive(Insertable)]
 #[diesel(table_name = transactions)]
 pub struct NewTransaction {
@@ -122,7 +121,7 @@ pub struct NewTransaction {
 
 }
 
-
+#[allow(non_snake_case)]
 #[derive(Identifiable, Clone, Queryable, PartialEq, Selectable, Debug)]
 #[diesel(table_name = transactions)]
 pub struct DBTransaction {

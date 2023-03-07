@@ -25,7 +25,7 @@ use serenity::{
 use crate::{
     binance_wrapped::BinanceWrapped,
     commands::{CommandError, SlashCommand},
-    config::{Config, ValueType},
+    config::{Config, ValueType}, error::TradingBotError,
 };
 
 pub(crate) const COMMAND_NAME: &'static str = "price";
@@ -107,6 +107,13 @@ impl SlashCommand for PriceCommand {
                         return Ok(());
                     }
                     "buy" => {
+                        if let Some(stub) = binance.is_clocked_in()?{
+                            if stub.user_id != interaction.user.id.0 as i64{
+                                return Err(CommandError::TradingBotError(TradingBotError::NotClockedIn("".into())))
+                            }
+                        }else{
+                            return Err(CommandError::TradingBotError(TradingBotError::NotClockedIn("".into())))
+                        }
                         binance.buy(Some(price.price as f32), None)?;
                         msg.edit(&ctx.http, |a| {
                             if let Some(uid) = id {
@@ -121,6 +128,13 @@ impl SlashCommand for PriceCommand {
                     }
                     "market_buy" => {
                         //TODO finish this shi
+                        if let Some(stub) = binance.is_clocked_in()?{
+                            if stub.user_id != interaction.user.id.0 as i64{
+                                return Err(CommandError::TradingBotError(TradingBotError::NotClockedIn("".into())))
+                            }
+                        }else{
+                            return Err(CommandError::TradingBotError(TradingBotError::NotClockedIn("".into())))
+                        }
                         binance.buy(None, None)?;
                         msg.edit(&ctx.http, |a| {
                             if let Some(uid) = id {
@@ -135,6 +149,13 @@ impl SlashCommand for PriceCommand {
                     }
                     "market_sell" => {
                         //TODO finish this shi
+                        if let Some(stub) = binance.is_clocked_in()?{
+                            if stub.user_id != interaction.user.id.0 as i64{
+                                return Err(CommandError::TradingBotError(TradingBotError::NotClockedIn("".into())))
+                            }
+                        }else{
+                            return Err(CommandError::TradingBotError(TradingBotError::NotClockedIn("".into())))
+                        }
                         binance.sell(None, None)?;
                         msg.edit(&ctx.http, |a| {
                             if let Some(uid) = id {
@@ -148,6 +169,13 @@ impl SlashCommand for PriceCommand {
                         return Ok(());
                     }
                     "sell" => {
+                        if let Some(stub) = binance.is_clocked_in()?{
+                            if stub.user_id != interaction.user.id.0 as i64{
+                                return Err(CommandError::TradingBotError(TradingBotError::NotClockedIn("".into())))
+                            }
+                        }else{
+                            return Err(CommandError::TradingBotError(TradingBotError::NotClockedIn("".into())))
+                        }
                         binance.sell(Some(price.price as f32), None)?;
                         msg.edit(&ctx.http, |a| {
                             if let Some(uid) = id {

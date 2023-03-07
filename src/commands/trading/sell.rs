@@ -16,7 +16,7 @@ use serenity::{
 use crate::{
     binance_wrapped::BinanceWrapped,
     commands::{CommandError, SlashCommand},
-    config::{Config, ValueType}, utils::get_option::get_option,
+    config::{Config, ValueType}, utils::get_option::get_option, error::TradingBotError,
 };
 pub(crate) const COMMAND_NAME: &'static str = "sell";
 pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
@@ -57,7 +57,14 @@ impl SlashCommand for SellCommand {
         let config = config.load();
         debug!("Executing Sell Command");
         let binance = self.binance.read().await;
-
+        trace!("Locked Binance Account");
+        if let Some(stub) = binance.is_clocked_in()?{
+            if stub.user_id != interaction.user.id.0 as i64{
+                return Err(CommandError::TradingBotError(TradingBotError::NotClockedIn("".into())))
+            }
+        }else{
+            return Err(CommandError::TradingBotError(TradingBotError::NotClockedIn("".into())))
+        }
         let price = match get_option::<f32>(&mut interaction.data.options.iter(), "price"){
             Ok(price) => Some(price),
             Err(err) => {
