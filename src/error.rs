@@ -23,5 +23,5 @@ pub enum TradingBotError {
     #[error("Config Error {0}")]
     ConfigError(String),
     #[error("Make sure Binance account is properly setup")]
-    BinanceAcccountMissing,
+    BinanceAccountMissing,
 }

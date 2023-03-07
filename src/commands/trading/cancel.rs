@@ -58,7 +58,7 @@ impl SlashCommand for CancelCommand {
         };
 
         let Some(account) = &binance.account else{
-            return Err(CommandError::TradingBotError(TradingBotError::BinanceAcccountMissing))
+            return Err(CommandError::TradingBotError(TradingBotError::BinanceAccountMissing))
         };
         let Some(active_transaction) = binance.get_transaction()? else{
             return Err(CommandError::TradingBotError(TradingBotError::ActiveTransaction("No active Transaction".into())))

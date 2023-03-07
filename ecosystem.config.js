@@ -1,7 +1,7 @@
 module.exports = {
   apps : [{
     name   : "TradingDiscordBot",
-    script : "cargo run --release"
+    script : "target/release/upwork_reda_shadi_rust"
   }],
   deploy : {
     production : {

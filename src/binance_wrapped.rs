@@ -39,7 +39,7 @@ impl BinanceWrapped {
     //Get for market data or balance nothing with trading
     pub fn get(&self) -> Result<Account, TradingBotError> {
         let Some(account) = self.account.clone() else {
-            return Err(TradingBotError::BinanceAcccountMissing)
+            return Err(TradingBotError::BinanceAccountMissing)
         };
         Ok(account)
     }
@@ -114,7 +114,21 @@ impl BinanceWrapped{
         use crate::schema::binance_accounts::dsl;
         use diesel::ExpressionMethods;
         let mut connection = establish_connection();
-        let result = dsl::binance_accounts.filter(dsl::selected.eq(true)).select(dsl::active_clock_stub).first::<Option<i32>>(&mut connection)?;
+        let result = match dsl::binance_accounts.filter(dsl::selected.eq(true)).select(dsl::active_clock_stub).first::<Option<i32>>(&mut connection){
+            Ok(a) => a,
+            Err(err) => {
+                trace!("Clocking in error {err:?}");
+                match err{
+                    diesel::result::Error::NotFound => {
+                        return Err(TradingBotError::BinanceAccountMissing);
+                    }
+                    err => {
+                        return Err(TradingBotError::DieselError(err));
+                    }
+                }
+              
+            }
+        };
 
         let Some(clock_stub_id) = result else{
             return Ok(None);
@@ -164,10 +178,14 @@ impl BinanceWrapped{
     }
     #[instrument(skip(self))]
     pub fn unlock(&self,user_id: Option<i64>) -> Result<(),TradingBotError>{
+        trace!("Checking Clock");
+
         let is_clocked_in = self.is_clocked_in()?;
         let Some(clock_stub) = is_clocked_in else{
             return Err(TradingBotError::LockingBinanceAccount(format!("Account is not locked")));
         };
+        trace!("Checking ID");
+
         if let Some(id) = user_id{
             if clock_stub.user_id != id{
                 return Err(TradingBotError::LockingBinanceAccount(format!("Account is locked by someone else")));
@@ -208,12 +226,14 @@ impl BinanceWrapped{
     #[instrument(skip(self))]
     pub fn lock(&self,user_id: i64) -> Result<(),TradingBotError>{
         //check is_reserved() continue if reserved by user or if no reservation
+        trace!("Checking Reservation");
         let is_reservation = self.is_reserved()?;
         if let Some(reservation) = is_reservation{
             if reservation.user_id != user_id{
                 return Err(TradingBotError::LockingBinanceAccount(format!("Account is reserved")));
             }
         }
+        trace!("Checking Clock");
 
         //check is_clocked in continue player is not clocked in and no one else is clocked in unless their is a reservation for the player clocking in
         let is_clocked_in = self.is_clocked_in()?;
@@ -270,7 +290,7 @@ impl BinanceWrapped{
 impl BinanceWrapped{
     pub fn get_balance(&self) -> Result<(Balance,Balance),TradingBotError>{
         let Some(account) = self.account.as_ref()  else{
-            return Err(TradingBotError::BinanceAcccountMissing);
+            return Err(TradingBotError::BinanceAccountMissing);
         };
         let symbol = match self.config.load().get::<String>("trading", "symbol")? {
             Some(symbol) => symbol,
@@ -297,7 +317,7 @@ impl BinanceWrapped{
         }
         let Some(account) = self.account.as_ref()  else{
             error!("Account is missing");
-            return Err(TradingBotError::BinanceAcccountMissing);
+            return Err(TradingBotError::BinanceAccountMissing);
         };
         let symbol = match self.config.load().get::<String>("trading", "symbol")? {
             Some(symbol) => symbol,
@@ -305,16 +325,20 @@ impl BinanceWrapped{
         };
         let Some(general) = self.general.as_ref()  else{
             error!("General is missing but not account");
-            return Err(TradingBotError::BinanceAcccountMissing);
+            return Err(TradingBotError::BinanceAccountMissing);
         };
         let symbol_info = general.get_symbol_info(&symbol)?;
         trace!("Getting Symbol Info for {}",symbol);
+        dbg!(symbol_info.clone());
         let Ok(balance) = account.get_balance(symbol_info.quote_asset)?.free.parse::<f64>() else{
             return Err(TradingBotError::ParsingDataError("Could no parse balance".into()));
         };
         let adjusted_balance = format!("{:.5}",(balance - 1.0) * percentage.unwrap_or(1.0)).parse::<f64>().unwrap();
         let order: Transaction;
         if let Some(price) = price{
+            let price = format!("{:.1$}",price,2).parse::<f64>().unwrap();
+
+
             let quantity = format!("{:.5}",adjusted_balance/(price as f64)).parse::<f64>().unwrap();
             if quantity < 0.0{
                 return Err(TradingBotError::ParsingDataError("Insuffecient balance".into()))
@@ -379,7 +403,7 @@ impl BinanceWrapped{
         }
         let Some(account) = self.account.as_ref()  else{
             error!("Account is missing");
-            return Err(TradingBotError::BinanceAcccountMissing);
+            return Err(TradingBotError::BinanceAccountMissing);
         };
         let symbol = match self.config.load().get::<String>("trading", "symbol")? {
             Some(symbol) => symbol,
@@ -387,10 +411,11 @@ impl BinanceWrapped{
         };
         let Some(general) = self.general.as_ref()  else{
             error!("General is missing but not account");
-            return Err(TradingBotError::BinanceAcccountMissing);
+            return Err(TradingBotError::BinanceAccountMissing);
         };
         let symbol_info = general.get_symbol_info(&symbol)?;
         trace!("Getting Symbol Info for {}",symbol);
+        dbg!(symbol_info.clone());
         let Ok(balance) = account.get_balance(symbol_info.base_asset)?.free.parse::<f64>() else{
             return Err(TradingBotError::ParsingDataError("Could no parse balance".into()));
         };
@@ -399,9 +424,9 @@ impl BinanceWrapped{
 
 
         if let Some(price) = price{
-            
+            let price = format!("{:.1$}",price,2).parse::<f64>().unwrap();
             trace!("Sending sell limit order for %{} of account with Qty:{} @{}",percentage.unwrap_or(1.0)*100.,adjusted_balance,price);
-            order = account.limit_sell(symbol, adjusted_balance, price as f64)?;
+            order = account.limit_sell(symbol, adjusted_balance, price)?;
 
         }else{
             trace!("Sending sell market order for %{} of account with balance {}",percentage.unwrap_or(1.0)*100.,adjusted_balance);

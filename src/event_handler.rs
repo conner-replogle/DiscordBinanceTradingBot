@@ -30,6 +30,7 @@ use crate::commands::config::set_config::SetConfigCommand;
 use crate::commands::config::status::StatusCommand;
 use crate::commands::schedule::clock::ClockCommand;
 use crate::commands::schedule::reserve::ReserveCommand;
+use crate::commands::schedule::summary::SummaryCommand;
 use crate::commands::trading::balance::BalanceCommand;
 use crate::commands::trading::buy::BuyCommand;
 use crate::commands::trading::cancel::CancelCommand;
@@ -134,6 +135,9 @@ impl Handler {
             }
             commands::trading::cancel::COMMAND_NAME => {
                 Box::from(CancelCommand::new(self.binance.clone()))
+            }
+            commands::schedule::summary::COMMAND_NAME => {
+                Box::from(SummaryCommand::new())
             }
 
 
@@ -245,8 +249,8 @@ impl Handler {
                     if let Err(err) =
                         send_status(&ctx.clone(), &clone_cmd.clone(), &format!("command failed {err:?}")).await
                     {
-                        error!("Error executing inital command {err:?}")
-                    }; //TODO SEND ERROR TO USER
+                    error!("Error executing inital command {err:?}")
+                    }; 
                 }
             })
             .await
@@ -323,6 +327,7 @@ impl EventHandler for Handler {
                 .create_application_command(|command| commands::schedule::clock::register(command))
                 .create_application_command(|command| commands::trading::orders::register(command))
                 .create_application_command(|command| commands::trading::cancel::register(command))
+                .create_application_command(|command| commands::schedule::summary::register(command))
 
 
         })

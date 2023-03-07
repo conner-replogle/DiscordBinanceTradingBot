@@ -3,7 +3,7 @@ use chrono::{NaiveDateTime, Utc};
 use diesel::sql_types::Time;
 use serenity::{client::Context, model::prelude::command::CommandOptionType};
 use std::sync::Arc;
-use tracing::instrument;
+use tracing::{instrument, trace};
 
 use serenity::{
     async_trait,
@@ -57,6 +57,7 @@ impl SlashCommand for ClockCommand {
     ) -> Result<(), CommandError> {
         let account = self.account.read().await;     
         let clocked_in = account.is_clocked_in()?;   
+        trace!("Clock {clocked_in:?}");
 
         if let Some(_) = clocked_in{
             account.unlock(Some(interaction.user.id.0 as i64))?;
