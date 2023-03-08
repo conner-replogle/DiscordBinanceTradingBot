@@ -6,7 +6,7 @@ module.exports = {
   deploy : {
     production : {
        "user" : "deployment",
-       "host" : "192.46.229.57",
+       "host" : "192.46.226.184",
        "ref"  : "origin/production",
        "repo" : "git@github.com:conner-replogle/upwork_reda_shadi_rust.git",
        "path" : "/home/deployment/trading_bot",
