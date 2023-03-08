@@ -265,7 +265,7 @@ impl BinanceWrapped{
                 start_time: Utc::now().naive_utc(),
                 user_id,
                 last_interaction: Utc::now().naive_utc(),
-            }).get_results::<ClockStub>(&mut connection)?.get(0).unwrap().clone();
+            }).get_result::<ClockStub>(&mut connection)?.clone();
             trace!("Clock stub created");
         }
         {
