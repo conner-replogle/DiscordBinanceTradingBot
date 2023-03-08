@@ -91,6 +91,9 @@ impl Handler {
 
     #[instrument(skip_all, name = "Command", level = "debug")]
     async fn command(&self, ctx: Context, command: ApplicationCommandInteraction) {
+        trace!("Received command: {:#?} ", command.data.name);
+
+
         let config = self.config.load();
 
 
