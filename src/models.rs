@@ -1,3 +1,5 @@
+use chrono::DateTime;
+use chrono::Utc;
 use diesel::prelude::*;
 
 use crate::schema::binance_accounts;
@@ -51,7 +53,7 @@ pub struct UpdateConfig {
 #[derive(Insertable)]
 #[diesel(table_name = reservations)]
 pub struct NewReservation {
-    pub start_time: chrono::NaiveDateTime,
+    pub start_time: DateTime<Utc>,
     pub end_time: chrono::NaiveDateTime,
     pub user_id: i64,
 }

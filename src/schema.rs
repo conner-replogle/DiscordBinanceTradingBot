@@ -37,10 +37,10 @@ diesel::table! {
 diesel::table! {
     reservations (id) {
         id -> Integer,
-        start_time -> Timestamp,
         end_time -> Timestamp,
         alerted -> Bool,
         user_id -> BigInt,
+        start_time -> Nullable<Timestamp>,
     }
 }
 

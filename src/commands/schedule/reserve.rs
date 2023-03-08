@@ -4,7 +4,7 @@ use chrono_tz::Tz;
 use diesel::sql_types::Time;
 use serenity::{client::Context, model::prelude::command::CommandOptionType};
 use std::sync::Arc;
-use tracing::instrument;
+use tracing::{instrument, trace};
 
 use serenity::{
     async_trait,
@@ -70,11 +70,11 @@ impl SlashCommand for ReserveCommand {
         let Ok(start_time) = NaiveDateTime::parse_from_str(&get_option::<String>(&mut interaction.data.options.iter(), "start_time")?, "%d/%m/%Y %H:%M") else{
             return Err(CommandError::IncorrectParameters("Failed to parse start time as Date".into()));
         };
-        //let start_time = start_time.and_local_timezone(Utc);
+        let start_time = start_time.and_local_timezone(Utc).unwrap().naive_utc();
         let Ok(end_time) = NaiveDateTime::parse_from_str(&get_option::<String>(&mut interaction.data.options.iter(), "end_time")?, "%d/%m/%Y %H:%M") else{
             return Err(CommandError::IncorrectParameters("Failed to parse start time as Date".into()));
         };
-        //let end_time = end_time.and_local_timezone(Utc);
+        let end_time = end_time.and_local_timezone(Utc).unwrap().naive_utc();
 
         let out = Schedule::create_reservation(NewReservation {
             start_time,
@@ -131,8 +131,11 @@ impl AutoComplete for ReserveCommand {
         };
         if focused.name == "start_time" {
             let start_time = get_option::<String>(&mut options, "start_time")?;
+            
             let time_slots = Schedule::open_time_slots(None, &config)?;
-
+            trace!(
+                "Starttime {}",start_time
+            );
             formatted = time_slots
                 .iter()
                 .filter_map(|slot| {
@@ -163,10 +166,13 @@ impl AutoComplete for ReserveCommand {
             let Ok(start_time) = NaiveDateTime::parse_from_str(&get_option::<String>(&mut options, "start_time")?, "%d/%m/%Y %H:%M") else{
                 return Err(CommandError::IncorrectParameters("Failed to parse start time as Date".into()));
             };
+            let start_time = start_time.and_local_timezone(time_zone).unwrap();
 
-            let start_time = start_time.and_local_timezone(Utc).unwrap();
+            let start_time = start_time.naive_utc().and_local_timezone(Utc).unwrap();
             let time_slots = Schedule::open_time_slots(Some(start_time), &config)?;
-
+            trace!(
+                "Starttime {}",start_time
+            );
             let end_time = get_option::<String>(&mut options, "end_time")?;
             formatted = Box::new(time_slots.iter().filter_map(|slot| {
                 match slot{
