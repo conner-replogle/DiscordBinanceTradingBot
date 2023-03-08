@@ -96,21 +96,8 @@ impl Handler {
 
         let config = self.config.load();
 
-<<<<<<< HEAD
 
         trace!("Received command: {:#?} ", command.data.name);
-=======
-        if let Err(err) = command
-            .create_interaction_response(&ctx.http, |response| {
-                response
-                    .kind(InteractionResponseType::ChannelMessageWithSource)
-                    .interaction_response_data(|message| message.content("Checking permissions..."))
-            })
-            .await
-        {
-            error!("Error executing inital message {err:?}")
-        };
->>>>>>> 614bdd9 (changes)
 
         //TODO MAKE ALL OF THIS DYNAMICALLY GENERATE MACRO ->
         let command_runner: Box<dyn commands::SlashCommand> = match command.data.name.as_str() {
