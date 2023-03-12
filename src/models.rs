@@ -87,6 +87,8 @@ pub struct BinanceAccount {
     pub secret: String,
     pub active_clock_stub: Option<i32>,
     pub active_reservation: Option<i32>,
+    pub active_transaction: Option<i32>
+
 }
 
 
@@ -108,7 +110,6 @@ pub struct ClockStub {
     pub end_time: Option<chrono::NaiveDateTime>,
     pub user_id: i64,
     pub last_interaction: chrono::NaiveDateTime,
-    pub active_transaction: Option<i32>
 }
 
 #[allow(non_snake_case)]
