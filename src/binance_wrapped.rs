@@ -109,7 +109,12 @@ impl BinanceWrapped {
 
 //Locking Account Unlocking etc
 impl BinanceWrapped{
-
+    pub fn get_account(&self) -> Result<BinanceAccount,TradingBotError>{
+        use crate::schema::binance_accounts::dsl;
+        use diesel::ExpressionMethods;
+        let mut connection = establish_connection();
+        return Ok(dsl::binance_accounts.filter(dsl::selected.eq(true)).get_result::<BinanceAccount>(&mut connection)?);
+    }
     pub fn is_clocked_in(&self) -> Result<Option<ClockStub>,TradingBotError>{
         use crate::schema::binance_accounts::dsl;
         use diesel::ExpressionMethods;
@@ -143,11 +148,8 @@ impl BinanceWrapped{
     }
     pub fn get_transaction(&self) -> Result<Option<DBTransaction>,TradingBotError>{
         let mut connection = establish_connection();
-
-        let Some(clock_stub) =  self.is_clocked_in()? else{
-            return Ok(None);
-        };
-        let Some(transcation_id) = clock_stub.active_transaction else{
+        let account = self.get_account()?;
+        let Some(transcation_id) = account.active_transaction else{
             trace!("No active transaction");
             return Ok(None)
         };
@@ -366,10 +368,10 @@ impl BinanceWrapped{
                 trace!("Transaction Created")
             }
             {
-                use crate::schema::clock_stubs::dsl;
+                use crate::schema::binance_accounts::dsl;
                 use diesel::ExpressionMethods;
                 let mut connection = establish_connection();
-                diesel::update(dsl::clock_stubs.filter(dsl::id.eq(stub.id))).set(dsl::active_transaction.eq(Some(transaction.id))).execute(&mut connection)?;
+                diesel::update(dsl::binance_accounts.filter(dsl::selected.eq(true))).set(dsl::active_transaction.eq(Some(transaction.id))).execute(&mut connection)?;
                 trace!("Transaction Linked")
             }
 
