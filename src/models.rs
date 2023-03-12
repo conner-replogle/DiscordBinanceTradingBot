@@ -119,6 +119,7 @@ pub struct ClockStub {
 #[diesel(table_name = transactions)]
 pub struct NewTransaction {
     pub clock_stub_id: i32,
+    pub buyOrderTime: DateTime<Utc>,
     pub buyOrderIds: String,
     pub sellOrderIds: String,
 

@@ -362,6 +362,7 @@ impl BinanceWrapped{
                 let mut connection = establish_connection();
                 transaction = diesel::insert_into(dsl::transactions).values(NewTransaction{
                     clock_stub_id: stub.id,
+                    buyOrderTime:Utc::now(),
                     buyOrderIds: format!("{}",order.order_id),
                     sellOrderIds: "".into(),
                 }).get_result(&mut connection)?;
