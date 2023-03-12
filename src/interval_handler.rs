@@ -272,8 +272,8 @@ async fn handle_reservations(
     let now = Utc::now();
 
     //If the time to alert the player has passed and the reservation was not marked as alerted
-    if !next_reservation.alerted && time_to_alert < now.naive_utc() {
-        let time_to = next_reservation.start_time - now.naive_utc();
+    if !next_reservation.alerted && time_to_alert < now {
+        let time_to = next_reservation.start_time - now;
 
         //Alert player
         ChannelId(config_reservation_channel as u64)
@@ -292,7 +292,7 @@ async fn handle_reservations(
             .execute(&mut connection)?;
     }
 
-    if next_reservation.start_time < now.naive_utc() && now.naive_utc() < time_to_lock {
+    if next_reservation.start_time < now && now < time_to_lock {
         trace!("Lock Reservation");
         {
         
@@ -310,7 +310,7 @@ async fn handle_reservations(
     
 
 
-    } else if time_to_lock < now.naive_utc() {
+    } else if time_to_lock < now {
         {
             use crate::schema::binance_accounts::dsl;
             diesel::update(dsl::binance_accounts.filter(dsl::selected.eq(true))).set(dsl::active_reservation.eq::<Option<i32>>(None)).execute(&mut connection)?;

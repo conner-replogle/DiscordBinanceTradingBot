@@ -49,13 +49,13 @@ impl Schedule {
 
             for reservation in reservations.iter() {
                 if set_start_time.is_some() {
-                    if reservation.start_time == right_now.naive_utc() {
+                    if reservation.start_time == right_now {
                         possible_times.push(TimeSlot::OPEN(right_now));
                         return Ok(possible_times);
                     }
                 } else {
-                    if reservation.start_time <= right_now.naive_utc()
-                        && right_now.naive_utc() < reservation.end_time
+                    if reservation.start_time <= right_now
+                        && right_now < reservation.end_time
                     {
                         slot_reserved = Some(reservation);
                         break;

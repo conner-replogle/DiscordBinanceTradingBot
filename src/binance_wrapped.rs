@@ -264,9 +264,9 @@ impl BinanceWrapped{
             use crate::schema::clock_stubs::dsl;
 
             clock_stub = diesel::insert_into(dsl::clock_stubs).values(NewClockStub{
-                start_time: Utc::now().naive_utc(),
+                start_time: Utc::now(),
                 user_id,
-                last_interaction: Utc::now().naive_utc(),
+                last_interaction: Utc::now(),
             }).get_result::<ClockStub>(&mut connection)?.clone();
             trace!("Clock stub created");
         }
