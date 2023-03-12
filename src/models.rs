@@ -96,9 +96,9 @@ pub struct BinanceAccount {
 #[derive(Insertable)]
 #[diesel(table_name = clock_stubs)]
 pub struct NewClockStub {
-    pub start_time: chrono::NaiveDateTime,
+    pub start_time: DateTime<Utc>,
     pub user_id: i64,
-    pub last_interaction: chrono::NaiveDateTime,
+    pub last_interaction: DateTime<Utc>,
 }
 
 
@@ -129,7 +129,7 @@ pub struct NewTransaction {
 pub struct DBTransaction {
     pub id:i32,
     pub clock_stub_id: i32,
-    pub buyOrderTime: chrono::NaiveDateTime,
+    pub buyOrderTime: DateTime<Utc>,
     pub buyOrderIds: String,
     pub buyReady: bool,
     pub buyAvgPrice:  Option<f64>,

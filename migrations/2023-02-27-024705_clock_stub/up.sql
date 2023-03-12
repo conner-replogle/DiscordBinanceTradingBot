@@ -2,9 +2,9 @@
 
 CREATE TABLE clock_stubs (
   id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-  start_time TIMESTAMP NOT NULL,
-  end_time TIMESTAMP,
+  start_time TEXT NOT NULL,
+  end_time TEXT,
   user_id bigint NOT NULL REFERENCES users (id),
-  last_interaction TIMESTAMP NOT NULL,
+  last_interaction TEXT NOT NULL,
   active_transaction INTEGER REFERENCES transactions (id)
 );

@@ -3,7 +3,7 @@ CREATE TABLE transactions (
   id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
   clock_stub_id INTEGER NOT NULL REFERENCES clock_stubs (id),
 
-  buyOrderTime DATETIME NOT NULL DEFAULT (DATETIME('now')),
+  buyOrderTime TEXT NOT NULL DEFAULT (DATETIME('now')),
 
   buyOrderIds varchar NOT NULL,
   buyReady tinyint NOT NULL DEFAULT 0,

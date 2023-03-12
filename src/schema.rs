@@ -16,10 +16,10 @@ diesel::table! {
 diesel::table! {
     clock_stubs (id) {
         id -> Integer,
-        start_time -> Timestamp,
-        end_time -> Nullable<Timestamp>,
+        start_time -> TimestamptzSqlite,
+        end_time -> Nullable<TimestamptzSqlite>,
         user_id -> BigInt,
-        last_interaction -> Timestamp,
+        last_interaction -> TimestamptzSqlite,
         active_transaction -> Nullable<Integer>,
     }
 }
@@ -37,8 +37,8 @@ diesel::table! {
 diesel::table! {
     reservations (id) {
         id -> Integer,
-        start_time -> Text,
-        end_time -> Text,
+        start_time -> TimestamptzSqlite,
+        end_time -> TimestamptzSqlite,
         alerted -> Bool,
         user_id -> BigInt,
     }
@@ -48,7 +48,7 @@ diesel::table! {
     transactions (id) {
         id -> Integer,
         clock_stub_id -> Integer,
-        buyOrderTime -> Timestamp,
+        buyOrderTime -> TimestamptzSqlite,
         buyOrderIds -> Text,
         buyReady -> Bool,
         buyAvgPrice -> Nullable<Double>,
