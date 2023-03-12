@@ -84,7 +84,6 @@ async fn handle_orders(
             use crate::schema::binance_accounts::dsl;
             transaction_id = dsl::binance_accounts.filter(dsl::selected.eq(true)).select(dsl::active_transaction).get_result::<Option<i32>>(&mut connection)?;
             trace!("Active Transaction ID {:?}",transaction_id);
-    
         }
         let Some(transaction_id) = transaction_id else {
             return Ok(());

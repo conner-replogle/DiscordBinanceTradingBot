@@ -38,6 +38,7 @@ impl SlashCommand for BalanceCommand {
     fn config(&self) -> crate::commands::CommandConfig {
         crate::commands::CommandConfig {
             accessLevel: crate::commands::AccessLevels::ADMIN,
+            ephermal: true,
             ..Default::default()
         }
     }
