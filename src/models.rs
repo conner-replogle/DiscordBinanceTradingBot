@@ -54,7 +54,7 @@ pub struct UpdateConfig {
 #[diesel(table_name = reservations)]
 pub struct NewReservation {
     pub start_time: DateTime<Utc>,
-    pub end_time: chrono::NaiveDateTime,
+    pub end_time: DateTime<Utc>,
     pub user_id: i64,
 }
 
@@ -63,8 +63,8 @@ pub struct NewReservation {
 #[diesel(table_name = reservations)]
 pub struct Reservation {
     pub id: i32,
-    pub start_time: chrono::NaiveDateTime,
-    pub end_time: chrono::NaiveDateTime,
+    pub start_time: DateTime<Utc>,
+    pub end_time: DateTime<Utc>,
     pub alerted: bool,
     pub user_id: i64,
 }
@@ -106,10 +106,10 @@ pub struct NewClockStub {
 #[diesel(table_name = clock_stubs)]
 pub struct ClockStub {
     pub id: i32,
-    pub start_time: chrono::NaiveDateTime,
-    pub end_time: Option<chrono::NaiveDateTime>,
+    pub start_time: DateTime<Utc>,
+    pub end_time: Option<DateTime<Utc>>,
     pub user_id: i64,
-    pub last_interaction: chrono::NaiveDateTime,
+    pub last_interaction: DateTime<Utc>,
     pub active_transaction: Option<i32>
 }
 
