@@ -6,3 +6,6 @@ file = "src/schema.rs"
 
 [migrations_directory]
 dir = "migrations"
+
+[patch_file]
+file = "diesel_patches/schema.patch"
