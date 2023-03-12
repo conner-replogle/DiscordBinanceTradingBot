@@ -5,5 +5,5 @@ CREATE TABLE clock_stubs (
   start_time TEXT NOT NULL,
   end_time TEXT,
   user_id bigint NOT NULL REFERENCES users (id),
-  last_interaction TEXT NOT NULL,
+  last_interaction TEXT NOT NULL
 );
