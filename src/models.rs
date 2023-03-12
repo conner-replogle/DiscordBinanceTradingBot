@@ -1,3 +1,5 @@
+use chrono::DateTime;
+use chrono::Utc;
 use diesel::prelude::*;
 
 use crate::schema::binance_accounts;
@@ -51,8 +53,8 @@ pub struct UpdateConfig {
 #[derive(Insertable)]
 #[diesel(table_name = reservations)]
 pub struct NewReservation {
-    pub start_time: chrono::NaiveDateTime,
-    pub end_time: chrono::NaiveDateTime,
+    pub start_time: DateTime<Utc>,
+    pub end_time: DateTime<Utc>,
     pub user_id: i64,
 }
 
@@ -61,8 +63,8 @@ pub struct NewReservation {
 #[diesel(table_name = reservations)]
 pub struct Reservation {
     pub id: i32,
-    pub start_time: chrono::NaiveDateTime,
-    pub end_time: chrono::NaiveDateTime,
+    pub start_time: DateTime<Utc>,
+    pub end_time: DateTime<Utc>,
     pub alerted: bool,
     pub user_id: i64,
 }
@@ -96,9 +98,9 @@ pub struct BinanceAccount {
 #[derive(Insertable)]
 #[diesel(table_name = clock_stubs)]
 pub struct NewClockStub {
-    pub start_time: chrono::NaiveDateTime,
+    pub start_time: DateTime<Utc>,
     pub user_id: i64,
-    pub last_interaction: chrono::NaiveDateTime,
+    pub last_interaction: DateTime<Utc>,
 }
 
 
@@ -106,10 +108,10 @@ pub struct NewClockStub {
 #[diesel(table_name = clock_stubs)]
 pub struct ClockStub {
     pub id: i32,
-    pub start_time: chrono::NaiveDateTime,
-    pub end_time: Option<chrono::NaiveDateTime>,
+    pub start_time: DateTime<Utc>,
+    pub end_time: Option<DateTime<Utc>>,
     pub user_id: i64,
-    pub last_interaction: chrono::NaiveDateTime,
+    pub last_interaction: DateTime<Utc>,
 }
 
 #[allow(non_snake_case)]
@@ -128,7 +130,7 @@ pub struct NewTransaction {
 pub struct DBTransaction {
     pub id:i32,
     pub clock_stub_id: i32,
-    pub buyOrderTime: chrono::NaiveDateTime,
+    pub buyOrderTime: DateTime<Utc>,
     pub buyOrderIds: String,
     pub buyReady: bool,
     pub buyAvgPrice:  Option<f64>,
