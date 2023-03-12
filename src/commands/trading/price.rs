@@ -193,7 +193,7 @@ impl SlashCommand for PriceCommand {
             }
             price = self.market.get_price(&symbol).unwrap();
 
-            if transaction.as_ref().is_some(){
+            if transaction.as_ref().is_some() && transaction.as_ref().unwrap().sellReady{
                 let mut c = CreateComponents::default();
                 c.create_action_row(|r|
                     

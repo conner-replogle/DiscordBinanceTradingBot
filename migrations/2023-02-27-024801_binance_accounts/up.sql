@@ -7,5 +7,6 @@ CREATE TABLE binance_accounts (
   api_key VARCHAR NOT NULL UNIQUE,
   secret VARCHAR NOT NULL UNIQUE,
   active_clock_stub INTEGER REFERENCES clock_stubs (id),
-  active_reservation INTEGER REFERENCES reservations (id)
+  active_reservation INTEGER REFERENCES reservations (id),
+  active_transaction INTEGER REFERENCES transactions (id)
 );

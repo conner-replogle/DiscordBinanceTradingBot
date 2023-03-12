@@ -10,6 +10,7 @@ diesel::table! {
         secret -> Text,
         active_clock_stub -> Nullable<Integer>,
         active_reservation -> Nullable<Integer>,
+        active_transaction -> Nullable<Integer>,
     }
 }
 
@@ -20,7 +21,6 @@ diesel::table! {
         end_time -> Nullable<TimestamptzSqlite>,
         user_id -> BigInt,
         last_interaction -> TimestamptzSqlite,
-        active_transaction -> Nullable<Integer>,
     }
 }
 
@@ -67,8 +67,10 @@ diesel::table! {
 
 diesel::joinable!(binance_accounts -> clock_stubs (active_clock_stub));
 diesel::joinable!(binance_accounts -> reservations (active_reservation));
+diesel::joinable!(binance_accounts -> transactions (active_transaction));
 diesel::joinable!(clock_stubs -> users (user_id));
 diesel::joinable!(reservations -> users (user_id));
+diesel::joinable!(transactions -> clock_stubs (clock_stub_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     binance_accounts,
