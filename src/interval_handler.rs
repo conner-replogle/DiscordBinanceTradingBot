@@ -96,10 +96,11 @@ async fn handle_orders(
     
             
             let id = transaction.buyOrderIds.split(',').last().unwrap();
-            trace!("Last Buy Order {}",id);
             if id ==""{
-                return Ok(())
+                continue
             }
+            trace!("Last Buy Order {}",id);
+            
             let last_order = id.parse::<u64>().unwrap();
             let order = account.order_status(&symbol, last_order)?;
             match order.status.as_str(){
@@ -129,7 +130,7 @@ async fn handle_orders(
                         trace!("Buy Orders:{:?}",orders);
                         if orders.len() == 0{
                             trace!("No Orders");
-                            return Ok(())
+                            continue;
                         }
                         let total_qty = orders.iter().fold(0.0,|n,(_,q)| n+q);
                         let avgPrice = orders.iter().fold(0.0,|t,(p,q)| 
@@ -150,15 +151,16 @@ async fn handle_orders(
                 }
             }
         }else{
-            trace!("Pulling sell order");
             let balance = dbinance.get_balance()?;
             let mut ids = transaction.sellOrderIds.split(',');
     
             let id = ids.clone().last().unwrap();
-            trace!("Last Sell Order {}",id);
             if id ==""{
-                return Ok(())
+                continue;
             }
+
+            trace!("Last Sell Order {}",id);
+            
             let last_order = id.parse::<u64>().unwrap();
             let order = account.order_status(&symbol, last_order)?;
             match order.status.as_str(){
