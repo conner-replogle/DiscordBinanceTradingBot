@@ -160,6 +160,7 @@ impl Handler {
         {
             error!("Error executing inital message {err:?}")
         };
+        let mut authorized = false;
 
         match command_config.accessLevel {
             commands::AccessLevels::ADMIN => {
@@ -169,7 +170,8 @@ impl Handler {
                         .has_role(&ctx.http, guild_id, role_id as u64)
                         .await
                     {
-                        debug!("User authorized")
+                        debug!("User authorized");
+                        authorized =true;
                     } else {
                         if let Err(err) = send_status(
                             &ctx,
@@ -194,6 +196,7 @@ impl Handler {
                         error!("Error executing inital command {err:?}")
                     };
                     warn!("Trading role was not set properly");
+                    authorized =true;
                 }
             }
             commands::AccessLevels::TRADER => {
@@ -203,7 +206,8 @@ impl Handler {
                         .has_role(&ctx.http, guild_id, role_id as u64)
                         .await
                     {
-                        debug!("User authorized")
+                        debug!("User authorized");
+                        authorized =true;
                     } else {
                         if let Err(err) = send_status(
                             &ctx,
@@ -227,11 +231,16 @@ impl Handler {
                         error!("Error executing inital command {err:?}")
                     };
                     warn!("Trading role was not set properly");
+                    authorized =true;
                 }
             }
             commands::AccessLevels::ANY => {
-                debug!("User authorized")
+                debug!("User authorized");
+                authorized =true;
             }
+        }
+        if !authorized{
+            return;
         }
         let time = match config.get("general", "command_timeout").unwrap() {
             Some(int) => int,
