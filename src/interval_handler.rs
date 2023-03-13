@@ -30,7 +30,7 @@ pub async fn run(ctx: Arc<Context>, config: Arc<ArcSwap<Config>>, binance: Arc<R
     });
     let ctx_clone2 = ctx_clone.clone();
     let con_clone2 = con_clone.clone();
-    scheduler.every(5.seconds()).run(move || {
+    scheduler.every(2.seconds()).run(move || {
         return handle_errors(handle_orders(ctx_clone.clone(), con_clone.clone(),binance.clone()));
     });
  
@@ -52,13 +52,37 @@ async fn handle_errors(fun: impl Future<Output = Result<(), Box<dyn Error>>>) {
 #[instrument(name = "AFK Handler", skip_all)]
 async fn handle_afk(
     ctx: Arc<Context>,
-    config: Arc<ArcSwap<Config>>) -> Result<(), Box<dyn Error>> {
+    config: Arc<ArcSwap<Config>>,
+    binance_w: Arc<RwLock<BinanceWrapped>>) -> Result<(), Box<dyn Error>> {
+    let mut connection = establish_connection();
+    let config = config.load();
+    let dbinance = binance_w.read().await;
+    let Some(stub) = dbinance.is_clocked_in()? else {
+        return Ok(())
+    };
+    let afk_warn_min = match config.get::<i32>("schedule", "afk_timeout_min")? {
+        Some(a) => a,
+        None => 15,
+    };
+    let afk_timeout_min = match config.get::<i32>("schedule", "afk_timeout_min")? {
+        Some(a) => a,
+        None => 5,
+    };
+
+
+    let time_to_afk = stub.last_interaction + Duration::minutes(afk_warn_min as i64);
+    if Utc::now() >  time_to_afk{
+
+    
+    }
+
+
+    
         
         
         
         
-        
-        Ok(())
+    Ok(())
 }
 
 

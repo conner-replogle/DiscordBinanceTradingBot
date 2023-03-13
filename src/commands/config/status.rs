@@ -1,7 +1,7 @@
 use arc_swap::{ArcSwapAny, Guard};
 use serenity::client::Context;
 use std::sync::Arc;
-
+use tokio::sync::RwLock;
 use serenity::{
     async_trait,
     builder::CreateApplicationCommand,
@@ -12,7 +12,7 @@ use serenity::{
 
 use crate::{
     commands::{CommandError, SlashCommand},
-    config::Config,
+    config::Config, binance_wrapped::BinanceWrapped,
 };
 pub(crate) const COMMAND_NAME: &'static str = "status";
 pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
@@ -20,11 +20,15 @@ pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApp
         .name(COMMAND_NAME)
         .description("Check the bot's status")
 }
-#[derive(Debug)]
-pub struct StatusCommand;
+
+pub struct StatusCommand{
+    binance: Arc<RwLock<BinanceWrapped>>
+}
 impl StatusCommand {
-    pub fn new() -> Self {
-        StatusCommand {}
+    pub fn new(binance: Arc<RwLock<BinanceWrapped>>) -> Self {
+        StatusCommand {
+            binance
+        }
     }
 }
 #[async_trait]
@@ -42,12 +46,22 @@ impl SlashCommand for StatusCommand {
         ctx: Context,
         config: Arc<ArcSwapAny<Arc<Config>>>,
     ) -> Result<(), CommandError> {
-
-
+        let binance = self.binance.read().await;
+        let mut binance_status = "".into();
+        if let Some(account) = binance.account.as_ref(){
+            let account_info = account.get_account();
+            binance_status = match account_info{
+                Err(err) => format!("❌ {}",err),
+                Ok(_) => format!("✅")
+            }
+        }
+        
         //Check if order handler is up
         //Check if rrservation handler is up
         interaction
-            .edit_original_interaction_response(&ctx.http, |response| response.content("Ok"))
+            .edit_original_interaction_response(&ctx.http, |response| response.embed(|e|
+            e.field("Binance", binance_status, false)
+            ))
             .await?;
         Ok(())
     }

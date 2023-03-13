@@ -1,6 +1,8 @@
 use arc_swap::ArcSwap;
 use binance::account::Account;
 use binance::api::Binance;
+use chrono::Utc;
+use diesel::RunQueryDsl;
 use std::env;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -101,7 +103,7 @@ impl Handler {
 
         //TODO MAKE ALL OF THIS DYNAMICALLY GENERATE MACRO ->
         let command_runner: Box<dyn commands::SlashCommand> = match command.data.name.as_str() {
-            commands::config::status::COMMAND_NAME => Box::from(StatusCommand::new()),
+            commands::config::status::COMMAND_NAME => Box::from(StatusCommand::new(self.binance.clone())),
             commands::trading::balance::COMMAND_NAME => {
                 Box::from(BalanceCommand::new(self.binance.clone()))
             }
@@ -246,6 +248,29 @@ impl Handler {
             Some(int) => int,
             None => 60 * 5,
         };
+
+        if command_config.counts_as_activity{
+            trace!("Logging activity");
+            let acc = self.binance.read().await;
+            let pot_stub = acc.is_clocked_in();
+            if let Ok(Some(stub)) = pot_stub{
+                use diesel::query_dsl::methods::FilterDsl;
+                use crate::schema::clock_stubs::dsl;
+                use diesel::ExpressionMethods;
+                let mut connection = establish_connection();
+                if let Err(err) = diesel::update(dsl::clock_stubs.filter(dsl::id.eq(stub.id))).set(dsl::last_interaction.eq(Utc::now())).execute(&mut connection){
+                    error!("Error updating last interaction {err}");
+                }else{
+                    debug!("Successfully set last ineraction");
+
+                }
+
+            }else{
+                trace!("Failed to log activity {:?}",pot_stub);
+            }
+
+            
+        }
 
         let config = self.config.clone();
         let command_cl = command.clone();

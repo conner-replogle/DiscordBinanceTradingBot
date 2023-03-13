@@ -21,6 +21,7 @@ diesel::table! {
         end_time -> Nullable<TimestamptzSqlite>,
         user_id -> BigInt,
         last_interaction -> TimestamptzSqlite,
+        afk_warn_flag -> Bool,
     }
 }
 

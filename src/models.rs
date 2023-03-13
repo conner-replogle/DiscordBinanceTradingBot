@@ -17,7 +17,7 @@ pub struct NewUser<'a> {
     pub tag: &'a str,
 }
 
-#[derive(Identifiable, Queryable)]
+#[derive(Identifiable, Queryable,Debug)]
 #[diesel(table_name = users)]
 pub struct User {
     pub id: i64,

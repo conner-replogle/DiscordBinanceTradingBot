@@ -1,52 +1,416 @@
-diff --git a/src/schema.rs b/src/schema.rs
-index a72deef..0184f41 100644
---- a/src/schema.rs
-+++ b/src/schema.rs
-@@ -14,16 +14,16 @@ diesel::table! {
+diff --git a/diesel.toml b/diesel.toml
+index dce95f0..dc1ad6f 100644
+--- a/diesel.toml
++++ b/diesel.toml
+@@ -1,10 +1,10 @@
+ # For documentation on how to configure this file,
+ # see https://diesel.rs/guides/configuring-diesel-cli
+ 
+ [print_schema]
+ file = "src/schema.rs"
+-patch_file = "diesel_patches/schema.patch"
++#patch_file = "diesel_patches/schema.patch"
+ [migrations_directory]
+ dir = "migrations"
+ 
+ 
+diff --git a/diesel_patches/schema.patch b/diesel_patches/schema.patch
+index 28b9e69..e69de29 100644
+--- a/diesel_patches/schema.patch
++++ b/diesel_patches/schema.patch
+@@ -1,52 +0,0 @@
+-diff --git a/src/schema.rs b/src/schema.rs
+-index a72deef..0184f41 100644
+---- a/src/schema.rs
+-+++ b/src/schema.rs
+-@@ -14,16 +14,16 @@ diesel::table! {
+-     }
+- }
+- 
+- diesel::table! {
+-     clock_stubs (id) {
+-         id -> Integer,
+--        start_time -> Text,
+--        end_time -> Nullable<Text>,
+-+        start_time -> TimestamptzSqlite,
+-+        end_time -> Nullable<TimestamptzSqlite>,
+-         user_id -> BigInt,
+--        last_interaction -> Text,
+-+        last_interaction -> TimestamptzSqlite,
+-     }
+- }
+- 
+- diesel::table! {
+-     configs (key) {
+-         section -> Text,
+-@@ -34,24 +34,24 @@ diesel::table! {
+-     }
+- }
+- 
+- diesel::table! {
+-     reservations (id) {
+-         id -> Integer,
+--        start_time -> Text,
+--        end_time -> Text,
+-+        start_time -> TimestamptzSqlite,
+-+        end_time -> TimestamptzSqlite,
+-         alerted -> Bool,
+-         user_id -> BigInt,
+-     }
+- }
+- 
+- diesel::table! {
+-     transactions (id) {
+-         id -> Integer,
+-         clock_stub_id -> Integer,
+--        buyOrderTime -> Text,
+-+        buyOrderTime -> TimestamptzSqlite,
+-         buyOrderIds -> Text,
+-         buyReady -> Bool,
+-         buyAvgPrice -> Nullable<Double>,
+-         sellOrderIds -> Text,
+-         sellReady -> Bool,
+-         sellAvgPrice -> Nullable<Double>,
+diff --git a/src/commands/config/status.rs b/src/commands/config/status.rs
+index d655b5e..eeeedd7 100644
+--- a/src/commands/config/status.rs
++++ b/src/commands/config/status.rs
+@@ -1,33 +1,37 @@
+ use arc_swap::{ArcSwapAny, Guard};
+ use serenity::client::Context;
+ use std::sync::Arc;
+-
++use tokio::sync::RwLock;
+ use serenity::{
+     async_trait,
+     builder::CreateApplicationCommand,
+     model::prelude::interaction::{
+         application_command::ApplicationCommandInteraction, InteractionResponseType,
+     },
+ };
+ 
+ use crate::{
+     commands::{CommandError, SlashCommand},
+-    config::Config,
++    config::Config, binance_wrapped::BinanceWrapped,
+ };
+ pub(crate) const COMMAND_NAME: &'static str = "status";
+ pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
+     command
+         .name(COMMAND_NAME)
+         .description("Check the bot's status")
+ }
+-#[derive(Debug)]
+-pub struct StatusCommand;
++
++pub struct StatusCommand{
++    binance: Arc<RwLock<BinanceWrapped>>
++}
+ impl StatusCommand {
+-    pub fn new() -> Self {
+-        StatusCommand {}
++    pub fn new(binance: Arc<RwLock<BinanceWrapped>>) -> Self {
++        StatusCommand {
++            binance
++        }
+     }
+ }
+ #[async_trait]
+ impl SlashCommand for StatusCommand {
+     fn config(&self) -> crate::commands::CommandConfig {
+         crate::commands::CommandConfig {
+@@ -39,16 +43,26 @@ impl SlashCommand for StatusCommand {
+     async fn run(
+         &self,
+         interaction: ApplicationCommandInteraction,
+         ctx: Context,
+         config: Arc<ArcSwapAny<Arc<Config>>>,
+     ) -> Result<(), CommandError> {
+-
+-
++        let binance = self.binance.read().await;
++        let mut binance_status = "".into();
++        if let Some(account) = binance.account.as_ref(){
++            let account_info = account.get_account();
++            binance_status = match account_info{
++                Err(err) => format!("❌ {}",err),
++                Ok(_) => format!("✅")
++            }
++        }
++        
+         //Check if order handler is up
+         //Check if rrservation handler is up
+         interaction
+-            .edit_original_interaction_response(&ctx.http, |response| response.content("Ok"))
++            .edit_original_interaction_response(&ctx.http, |response| response.embed(|e|
++            e.field("Binance", binance_status, false)
++            ))
+             .await?;
+         Ok(())
+     }
+ }
+diff --git a/src/commands/mod.rs b/src/commands/mod.rs
+index 4436da7..6daf604 100644
+--- a/src/commands/mod.rs
++++ b/src/commands/mod.rs
+@@ -44,19 +44,21 @@ pub enum AccessLevels {
+ }
+ 
+ pub struct CommandConfig {
+     pub accessLevel: AccessLevels,
+     pub ephermal: bool,
+     pub fetch_reply: bool,
++    pub counts_as_activity: bool,
+ }
+ impl Default for CommandConfig {
+     fn default() -> Self {
+         Self {
+             accessLevel: AccessLevels::ANY,
+             ephermal: false,
+             fetch_reply: true,
++            counts_as_activity:false
+         }
      }
  }
  
- diesel::table! {
+ #[async_trait]
+ 
+diff --git a/src/commands/schedule/summary.rs b/src/commands/schedule/summary.rs
+index 27ea535..37b958b 100644
+--- a/src/commands/schedule/summary.rs
++++ b/src/commands/schedule/summary.rs
+@@ -55,23 +55,28 @@ impl SlashCommand for SummaryCommand {
+         ctx: Context,
+         config: Arc<ArcSwapAny<Arc<Config>>>,
+     ) -> Result<(), CommandError> {
+         let mut connection = establish_connection();
+         let users;
+         //Get users
++        trace!("Getting users");
++
+         {
+             use crate::schema::users::dsl;
+             users = dsl::users.load::<User>(&mut connection)?;
+         }   
+         let mut pay = Vec::new();
++        trace!("Calculating Pay for users {:?}",users);
++
+         for user in users.iter(){
+             let stubs;
+             {
+                 use crate::schema::clock_stubs::dsl;
+                 stubs = dsl::clock_stubs.filter(dsl::user_id.eq(user.id)).load::<ClockStub>(&mut connection)?;
+             }   
++            trace!("Calculating Pay for user {:?} with stubs {:?}",user,stubs);
+             let mut total_earned = 0.0;
+             let mut total_mins = 0;
+             
+             for stub in stubs.iter(){
+                 let Some(end_time) = stub.end_time else{
+                     continue;
+diff --git a/src/commands/trading/buy.rs b/src/commands/trading/buy.rs
+index 3da2d96..ef3760c 100644
+--- a/src/commands/trading/buy.rs
++++ b/src/commands/trading/buy.rs
+@@ -45,12 +45,13 @@ impl BuyCommand {
+ }
+ #[async_trait]
+ impl SlashCommand for BuyCommand {
+     fn config(&self) -> crate::commands::CommandConfig {
+         crate::commands::CommandConfig {
+             accessLevel: crate::commands::AccessLevels::TRADER,
++            counts_as_activity: true,
+             ..Default::default()
+         }
+     }
+ 
+     async fn run(
+         &self,
+diff --git a/src/commands/trading/sell.rs b/src/commands/trading/sell.rs
+index df91986..4af2257 100644
+--- a/src/commands/trading/sell.rs
++++ b/src/commands/trading/sell.rs
+@@ -41,12 +41,13 @@ impl SellCommand {
+ }
+ #[async_trait]
+ impl SlashCommand for SellCommand {
+     fn config(&self) -> crate::commands::CommandConfig {
+         crate::commands::CommandConfig {
+             accessLevel: crate::commands::AccessLevels::TRADER,
++            counts_as_activity: true,
+             ..Default::default()
+         }
+     }
+ 
+     async fn run(
+         &self,
+diff --git a/src/event_handler.rs b/src/event_handler.rs
+index 1372562..189aac1 100644
+--- a/src/event_handler.rs
++++ b/src/event_handler.rs
+@@ -1,9 +1,11 @@
+ use arc_swap::ArcSwap;
+ use binance::account::Account;
+ use binance::api::Binance;
++use chrono::Utc;
++use diesel::RunQueryDsl;
+ use std::env;
+ use std::sync::atomic::{AtomicBool, Ordering};
+ use std::sync::Arc;
+ use std::time::Duration;
+ use tokio::task::JoinHandle;
+ 
+@@ -98,13 +100,13 @@ impl Handler {
+ 
+ 
+         trace!("Received command: {:#?} ", command.data.name);
+ 
+         //TODO MAKE ALL OF THIS DYNAMICALLY GENERATE MACRO ->
+         let command_runner: Box<dyn commands::SlashCommand> = match command.data.name.as_str() {
+-            commands::config::status::COMMAND_NAME => Box::from(StatusCommand::new()),
++            commands::config::status::COMMAND_NAME => Box::from(StatusCommand::new(self.binance.clone())),
+             commands::trading::balance::COMMAND_NAME => {
+                 Box::from(BalanceCommand::new(self.binance.clone()))
+             }
+             commands::trading::buy::COMMAND_NAME => {
+                 Box::from(BuyCommand::new(self.binance.clone()))
+             }
+@@ -244,12 +246,35 @@ impl Handler {
+         }
+         let time = match config.get("general", "command_timeout").unwrap() {
+             Some(int) => int,
+             None => 60 * 5,
+         };
+ 
++        if command_config.counts_as_activity{
++            trace!("Logging activity");
++            let acc = self.binance.read().await;
++            let pot_stub = acc.is_clocked_in();
++            if let Ok(Some(stub)) = pot_stub{
++                use diesel::query_dsl::methods::FilterDsl;
++                use crate::schema::clock_stubs::dsl;
++                use diesel::ExpressionMethods;
++                let mut connection = establish_connection();
++                if let Err(err) = diesel::update(dsl::clock_stubs.filter(dsl::id.eq(stub.id))).set(dsl::last_interaction.eq(Utc::now())).execute(&mut connection){
++                    error!("Error updating last interaction {err}");
++                }else{
++                    debug!("Successfully set last ineraction");
++
++                }
++
++            }else{
++                trace!("Failed to log activity {:?}",pot_stub);
++            }
++
++            
++        }
++
+         let config = self.config.clone();
+         let command_cl = command.clone();
+         let name = command_cl.data.name.clone();
+         trace!("Spinning up command thread and executing thread");
+ 
+         tokio::spawn(async move {
+diff --git a/src/interval_handler.rs b/src/interval_handler.rs
+index bd700d0..4a0f599 100644
+--- a/src/interval_handler.rs
++++ b/src/interval_handler.rs
+@@ -27,13 +27,13 @@ pub async fn run(ctx: Arc<Context>, config: Arc<ArcSwap<Config>>, binance: Arc<R
+     let con_clone = config.clone();
+     scheduler.every(1.minute()).run(move || {
+         return handle_errors(handle_reservations(ctx.clone(), config.clone()));
+     });
+     let ctx_clone2 = ctx_clone.clone();
+     let con_clone2 = con_clone.clone();
+-    scheduler.every(5.seconds()).run(move || {
++    scheduler.every(2.seconds()).run(move || {
+         return handle_errors(handle_orders(ctx_clone.clone(), con_clone.clone(),binance.clone()));
+     });
+  
+     scheduler.every(1.minute()).run(move || {
+         return handle_errors(handle_afk(ctx_clone2.clone(), con_clone2.clone()));
+     });
+@@ -49,19 +49,43 @@ async fn handle_errors(fun: impl Future<Output = Result<(), Box<dyn Error>>>) {
+     }
+ }
+ 
+ #[instrument(name = "AFK Handler", skip_all)]
+ async fn handle_afk(
+     ctx: Arc<Context>,
+-    config: Arc<ArcSwap<Config>>) -> Result<(), Box<dyn Error>> {
+-        
++    config: Arc<ArcSwap<Config>>,
++    binance_w: Arc<RwLock<BinanceWrapped>>) -> Result<(), Box<dyn Error>> {
++    let mut connection = establish_connection();
++    let config = config.load();
++    let dbinance = binance_w.read().await;
++    let Some(stub) = dbinance.is_clocked_in()? else {
++        return Ok(())
++    };
++    let afk_warn_min = match config.get::<i32>("schedule", "afk_timeout_min")? {
++        Some(a) => a,
++        None => 15,
++    };
++    let afk_timeout_min = match config.get::<i32>("schedule", "afk_timeout_min")? {
++        Some(a) => a,
++        None => 5,
++    };
++
++
++    let time_to_afk = stub.last_interaction + Duration::minutes(afk_warn_min as i64);
++    if Utc::now() >  time_to_afk{
++
++    
++    }
++
++
++    
+         
+         
+         
+         
+-        Ok(())
++    Ok(())
+ }
+ 
+ 
+ use diesel::ExpressionMethods;
+ #[instrument(name = "Order Handler", skip_all)]
+ async fn handle_orders(
+diff --git a/src/models.rs b/src/models.rs
+index e9fa0d6..3e79212 100644
+--- a/src/models.rs
++++ b/src/models.rs
+@@ -14,13 +14,13 @@ use crate::schema::transactions;
+ #[diesel(table_name = users)]
+ pub struct NewUser<'a> {
+     pub id: i64,
+     pub tag: &'a str,
+ }
+ 
+-#[derive(Identifiable, Queryable)]
++#[derive(Identifiable, Queryable,Debug)]
+ #[diesel(table_name = users)]
+ pub struct User {
+     pub id: i64,
+     pub tag: String,
+ }
+ 
+diff --git a/src/schema.rs b/src/schema.rs
+index 0184f41..043e5aa 100644
+--- a/src/schema.rs
++++ b/src/schema.rs
+@@ -18,12 +18,13 @@ diesel::table! {
      clock_stubs (id) {
          id -> Integer,
--        start_time -> Text,
--        end_time -> Nullable<Text>,
-+        start_time -> TimestamptzSqlite,
-+        end_time -> Nullable<TimestamptzSqlite>,
+         start_time -> TimestamptzSqlite,
+         end_time -> Nullable<TimestamptzSqlite>,
          user_id -> BigInt,
--        last_interaction -> Text,
-+        last_interaction -> TimestamptzSqlite,
+         last_interaction -> TimestamptzSqlite,
++        afk_warn_flag -> Bool,
      }
  }
  
  diesel::table! {
      configs (key) {
          section -> Text,
-@@ -34,24 +34,24 @@ diesel::table! {
-     }
- }
- 
- diesel::table! {
-     reservations (id) {
-         id -> Integer,
--        start_time -> Text,
--        end_time -> Text,
-+        start_time -> TimestamptzSqlite,
-+        end_time -> TimestamptzSqlite,
-         alerted -> Bool,
-         user_id -> BigInt,
-     }
- }
- 
- diesel::table! {
-     transactions (id) {
-         id -> Integer,
-         clock_stub_id -> Integer,
--        buyOrderTime -> Text,
-+        buyOrderTime -> TimestamptzSqlite,
-         buyOrderIds -> Text,
-         buyReady -> Bool,
-         buyAvgPrice -> Nullable<Double>,
-         sellOrderIds -> Text,
-         sellReady -> Bool,
-         sellAvgPrice -> Nullable<Double>,
