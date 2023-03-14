@@ -51,6 +51,7 @@ impl SlashCommand for PriceCommand {
     fn config(&self) -> crate::commands::CommandConfig {
         crate::commands::CommandConfig {
             accessLevel: crate::commands::AccessLevels::TRADER,
+            counts_as_activity: true,
             ..Default::default()
         }
     }
