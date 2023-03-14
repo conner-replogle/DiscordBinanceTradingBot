@@ -47,6 +47,7 @@ pub struct CommandConfig {
     pub accessLevel: AccessLevels,
     pub ephermal: bool,
     pub fetch_reply: bool,
+    pub counts_as_activity: bool,
 }
 impl Default for CommandConfig {
     fn default() -> Self {
@@ -54,6 +55,7 @@ impl Default for CommandConfig {
             accessLevel: AccessLevels::ANY,
             ephermal: false,
             fetch_reply: true,
+            counts_as_activity:false
         }
     }
 }

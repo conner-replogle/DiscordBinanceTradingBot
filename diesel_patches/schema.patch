@@ -1,5 +1,5 @@
 diff --git a/src/schema.rs b/src/schema.rs
-index a72deef..0184f41 100644
+index 38efc99..043e5aa 100644
 --- a/src/schema.rs
 +++ b/src/schema.rs
 @@ -14,16 +14,16 @@ diesel::table! {
@@ -16,13 +16,13 @@ index a72deef..0184f41 100644
          user_id -> BigInt,
 -        last_interaction -> Text,
 +        last_interaction -> TimestamptzSqlite,
+         afk_warn_flag -> Bool,
      }
  }
  
  diesel::table! {
      configs (key) {
-         section -> Text,
-@@ -34,24 +34,24 @@ diesel::table! {
+@@ -35,24 +35,24 @@ diesel::table! {
      }
  }
  

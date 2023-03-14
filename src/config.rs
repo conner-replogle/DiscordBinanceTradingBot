@@ -275,6 +275,69 @@ impl Config {
             },
             &mut connection,
         )?;
+        insert_config(
+            models::NewConfig {
+                section: "trading",
+                key: "quote_asset_threshold",
+                value_type: ValueType::STRING.to_i32(),
+                value: Some("10".into()),
+                description: "Amount of money in quote balance for it to count as a full buy",
+            },
+            &mut connection,
+        )?;
+        insert_config(
+            models::NewConfig {
+                section: "trading",
+                key: "base_asset_threshold",
+                value_type: ValueType::STRING.to_i32(),
+                value: Some("0.0001".into()),
+                description: "Amount of money in base balance for it to count as a full sell",
+            },
+            &mut connection,
+        )?;
+        insert_config(
+            models::NewConfig {
+                section: "channels",
+                key: "order_status",
+                value_type: ValueType::BIGINT.to_i32(),
+                value: None,
+                description: "The channel to send order clearing notifications None == OFF",
+            },
+            &mut connection,
+        )?;
+        insert_config(
+            models::NewConfig {
+                section: "channels",
+                key: "afk_channel",
+                value_type: ValueType::BIGINT.to_i32(),
+                value: None,
+                description: "The channel to send afk checks too None == OFF",
+            },
+            &mut connection,
+        )?;
+        insert_config(
+            models::NewConfig {
+                section: "schedule",
+                key: "afk_warn_min",
+                value_type: ValueType::INT.to_i32(),
+                value: Some("15"),
+                description: "Time in mins of inactivity before a afk check",
+            },
+            &mut connection,
+        )?;
+        insert_config(
+            models::NewConfig {
+                section: "schedule",
+                key: "afk_timeout_min",
+                value_type: ValueType::INT.to_i32(),
+                value: Some("5"),
+                description: "Time to click the button before being timed out",
+            },
+            &mut connection,
+        )?;
+
+
+
 
         Self::load()
     }

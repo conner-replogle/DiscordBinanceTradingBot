@@ -58,17 +58,22 @@ impl SlashCommand for SummaryCommand {
         let mut connection = establish_connection();
         let users;
         //Get users
+        trace!("Getting users");
+
         {
             use crate::schema::users::dsl;
             users = dsl::users.load::<User>(&mut connection)?;
         }   
         let mut pay = Vec::new();
+        trace!("Calculating Pay for users {:?}",users);
+
         for user in users.iter(){
             let stubs;
             {
                 use crate::schema::clock_stubs::dsl;
                 stubs = dsl::clock_stubs.filter(dsl::user_id.eq(user.id)).load::<ClockStub>(&mut connection)?;
             }   
+            trace!("Calculating Pay for user {:?} with stubs {:?}",user,stubs);
             let mut total_earned = 0.0;
             let mut total_mins = 0;
             

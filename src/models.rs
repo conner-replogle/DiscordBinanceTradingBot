@@ -17,7 +17,7 @@ pub struct NewUser<'a> {
     pub tag: &'a str,
 }
 
-#[derive(Identifiable, Queryable)]
+#[derive(Identifiable, Queryable,Debug)]
 #[diesel(table_name = users)]
 pub struct User {
     pub id: i64,
@@ -112,6 +112,7 @@ pub struct ClockStub {
     pub end_time: Option<DateTime<Utc>>,
     pub user_id: i64,
     pub last_interaction: DateTime<Utc>,
+    pub afk_warn_flag: bool
 }
 
 #[allow(non_snake_case)]
