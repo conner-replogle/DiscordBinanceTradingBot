@@ -16,7 +16,7 @@ use crate::{
 };
 
 pub struct BinanceWrapped {
-    id: i32,
+    pub id: i32,
     pub account: Option<Account>,
     pub market: Market,
     pub general: Option<General>,

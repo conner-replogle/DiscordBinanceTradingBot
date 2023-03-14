@@ -3,7 +3,7 @@
 
 [print_schema]
 file = "src/schema.rs"
-#patch_file = "diesel_patches/schema.patch"
+patch_file = "diesel_patches/schema.patch"
 [migrations_directory]
 dir = "migrations"
 

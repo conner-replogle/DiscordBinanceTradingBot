@@ -88,7 +88,7 @@ impl SlashCommand for OrdersCommand {
                 if let Some(account) = binance.account.as_ref(){
                     let mut buy_order_ids = order.buyOrderIds.split(',');
                     while let Some(order_str) = buy_order_ids.next(){
-                        if order_str == ""{
+                        if order_str.is_empty(){
                             continue;
                         }
                         let order_id = order_str.parse::<u64>().unwrap();
@@ -103,7 +103,7 @@ impl SlashCommand for OrdersCommand {
                     }
                     let mut sell_order_ids = order.sellOrderIds.split(',');
                     while let Some(order_str) = sell_order_ids.next(){
-                        if order_str == ""{
+                        if order_str.is_empty(){
                             continue;
                         }
                         let order_id = order_str.parse::<u64>().unwrap();
@@ -136,7 +136,7 @@ impl SlashCommand for OrdersCommand {
                         e.field("TPrice", if order.price == 0.0{"market".into()}else{order.price.to_string()}, false);
                         
                         e.field("AvgPrice",price,true)
-                        .field("Percentage Done",(oq/eq)*100.0,false)
+                        .field("Percentage Done",(eq/oq)*100.0,false)
                         .field("Status",order.status.clone(),false);
                     }
 
@@ -155,7 +155,7 @@ impl SlashCommand for OrdersCommand {
                         
                             
                             e.field("AvgPrice",price,false)
-                            .field("Percentage Done",(oq/eq)*100.0,false)
+                            .field("Percentage Done",(eq/oq)*100.0,false)
                             .field("Status",order.status.clone(),false);
                         }
     
