@@ -89,7 +89,16 @@ impl SlashCommand for SetConfigCommand {
         };
 
         trace!("Recieved Options Section:{section} Key:{key} Value:{value}");
-
+        if value == "None"{
+            config_ops::handle(Operations::UpdateConfig(models::UpdateConfig {
+                section: section.clone(),
+                key: key.clone(),
+                value: None,
+            }))?;
+            interaction.edit_original_interaction_response(&ctx.http, |response| {
+                response.content(format!("Updated Config at {section}/{key} to None"))
+            }).await?;
+        }else{
         match config_load.get_type(&section, &key)? {
             ValueType::STRING => {
                 let old_value = config_load.get::<String>(&section, &key)?;
@@ -156,6 +165,7 @@ impl SlashCommand for SetConfigCommand {
                 }).await?;
             }
         }
+        }   
         match Config::load() {
             Ok(con) => config.store(Arc::from(con)),
             Err(err) => {

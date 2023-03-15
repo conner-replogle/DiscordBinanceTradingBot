@@ -87,7 +87,7 @@ pub struct Config {
 }
 impl Config {
     pub fn get<T: FromStr>(&self, section: &str, key: &str) -> Result<Option<T>, TradingBotError> {
-        trace!("Getting {section}/{key}");
+        //trace!("Getting {section}/{key}");
         if let Some(section_map) = self.cached.get(section) {
             let result = section_map.get(key);
             match result {
