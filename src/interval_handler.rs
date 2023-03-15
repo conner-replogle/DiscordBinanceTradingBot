@@ -164,7 +164,6 @@ async fn handle_orders(
         {
             use crate::schema::binance_accounts::dsl;
             transaction_id = dsl::binance_accounts.filter(dsl::selected.eq(true)).select(dsl::active_transaction).get_result::<Option<i32>>(&mut connection)?;
-            trace!("Active Transaction ID {:?}",transaction_id);
         }
         let Some(transaction_id) = transaction_id else {
             return Ok(());
@@ -172,7 +171,6 @@ async fn handle_orders(
         {
             use crate::schema::transactions::dsl;
             transaction = dsl::transactions.filter(dsl::id.eq(transaction_id)).get_result::<DBTransaction>(&mut connection)?;
-            trace!("Active Transaction {:?}",transaction);
 
         }
 
@@ -247,7 +245,7 @@ async fn handle_orders(
                             }).await?;
                         }
                     }
-                }else{
+                }else if !transaction.buyReady{
                     diesel::update(dsl::transactions.filter(dsl::id.eq(transaction.id))).set(dsl::buyReady.eq(true)).execute(&mut connection)?;
                     if let Some(channel_id) = order_status{
                         if let Some(stub) = dbinance.is_clocked_in()?{
@@ -338,7 +336,7 @@ async fn handle_orders(
                             }).await?;
                         }
                     }
-                }else{
+                }else if !transaction.sellReady{
                     diesel::update(dsl::transactions.filter(dsl::id.eq(transaction.id))).set(dsl::sellReady.eq(true)).execute(&mut connection)?;
                     if let Some(channel_id) = order_status{
                         if let Some(stub) = dbinance.is_clocked_in()?{

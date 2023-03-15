@@ -331,8 +331,7 @@ impl BinanceWrapped{
             return Err(TradingBotError::BinanceAccountMissing);
         };
         let symbol_info = general.get_symbol_info(&symbol)?;
-        trace!("Getting Symbol Info for {}",symbol);
-        dbg!(symbol_info.clone());
+        debug!("Getting Symbol Info for {}",symbol);
         let Ok(balance) = account.get_balance(symbol_info.quote_asset)?.free.parse::<f64>() else{
             return Err(TradingBotError::ParsingDataError("Could no parse balance".into()));
         };
@@ -347,11 +346,11 @@ impl BinanceWrapped{
                 return Err(TradingBotError::ParsingDataError("Insuffecient balance".into()))
             }
 
-            trace!("Sending buy limit order for %{} of account with Qty:{} @{}",percentage.unwrap_or(1.0)*100.,quantity,price);
+            debug!("Sending buy limit order for %{} of account with Qty:{} @{}",percentage.unwrap_or(1.0)*100.,quantity,price);
             order = account.limit_buy(symbol, quantity, price as f64)?;
 
         }else{
-            trace!("Sending buy market order for %{} of account",percentage.unwrap_or(1.0)*100.);
+            debug!("Sending buy market order for %{} of account",percentage.unwrap_or(1.0)*100.);
             order = account.market_buy_using_quote_quantity(&symbol, adjusted_balance)?;
         }
         //file transaction
@@ -373,7 +372,7 @@ impl BinanceWrapped{
                 use diesel::ExpressionMethods;
                 let mut connection = establish_connection();
                 diesel::update(dsl::binance_accounts.filter(dsl::selected.eq(true))).set(dsl::active_transaction.eq(Some(transaction.id))).execute(&mut connection)?;
-                trace!("Transaction Linked")
+                debug!("Transaction Linked")
             }
 
         }else if let Some(transaction) = &opt_transaction{
@@ -418,7 +417,7 @@ impl BinanceWrapped{
             return Err(TradingBotError::BinanceAccountMissing);
         };
         let symbol_info = general.get_symbol_info(&symbol)?;
-        trace!("Getting Symbol Info for {}",symbol);
+        debug!("Getting Symbol Info for {}",symbol);
         dbg!(symbol_info.clone());
         let Ok(balance) = account.get_balance(symbol_info.base_asset)?.free.parse::<f64>() else{
             return Err(TradingBotError::ParsingDataError("Could no parse balance".into()));
@@ -429,11 +428,11 @@ impl BinanceWrapped{
 
         if let Some(price) = price{
             let price = format!("{:.1$}",price,2).parse::<f64>().unwrap();
-            trace!("Sending sell limit order for %{} of account with Qty:{} @{}",percentage.unwrap_or(1.0)*100.,adjusted_balance,price);
+            debug!("Sending sell limit order for %{} of account with Qty:{} @{}",percentage.unwrap_or(1.0)*100.,adjusted_balance,price);
             order = account.limit_sell(symbol, adjusted_balance, price)?;
 
         }else{
-            trace!("Sending sell market order for %{} of account with balance {}",percentage.unwrap_or(1.0)*100.,adjusted_balance);
+            debug!("Sending sell market order for %{} of account with balance {}",percentage.unwrap_or(1.0)*100.,adjusted_balance);
             order = account.market_sell(&symbol, adjusted_balance)?;
         }
 
@@ -446,7 +445,7 @@ impl BinanceWrapped{
             }else{
                 diesel::update(dsl::transactions.filter(dsl::id.eq(transaction.id))).set((dsl::sellReady.eq(false),dsl::sellOrderIds.eq(format!("{},{}",transaction.sellOrderIds,order.order_id)))).execute(&mut connection)?;
             }
-            trace!("Sell Order ID Set");
+            debug!("Sell Order ID Set");
         }
 
 
