@@ -73,7 +73,6 @@ async fn handle_afk(
         Some(a) => a,
         None => 5,
     };
-     
 
     if !stub.afk_warn_flag{
         let time_to_afk = stub.last_interaction + Duration::minutes(afk_warn_min as i64);
@@ -108,7 +107,7 @@ async fn handle_afk(
                             .content("AFK VAILIDATED")
                     ) .await?;
                     use crate::schema::clock_stubs::dsl;
-                    diesel::update(dsl::clock_stubs.filter(dsl::id.eq(stub.id))).set(dsl::last_interaction.eq(Utc::now())).execute(&mut connection)?;
+                    diesel::update(dsl::clock_stubs.filter(dsl::id.eq(stub.id))).set((dsl::afk_warn_flag.eq(false),dsl::last_interaction.eq(Utc::now()))).execute(&mut connection)?;
 
                },
                None => {

@@ -418,7 +418,6 @@ impl BinanceWrapped{
         };
         let symbol_info = general.get_symbol_info(&symbol)?;
         debug!("Getting Symbol Info for {}",symbol);
-        dbg!(symbol_info.clone());
         let Ok(balance) = account.get_balance(symbol_info.base_asset)?.free.parse::<f64>() else{
             return Err(TradingBotError::ParsingDataError("Could no parse balance".into()));
         };
