@@ -33,6 +33,7 @@ use crate::commands::config::status::StatusCommand;
 use crate::commands::schedule::clock::ClockCommand;
 use crate::commands::schedule::reserve::ReserveCommand;
 use crate::commands::schedule::summary::SummaryCommand;
+use crate::commands::schedule::unlock::UnlockCommand;
 use crate::commands::trading::balance::BalanceCommand;
 use crate::commands::trading::buy::BuyCommand;
 use crate::commands::trading::cancel::CancelCommand;
@@ -135,6 +136,8 @@ impl Handler {
             }
             commands::schedule::summary::COMMAND_NAME => {
                 Box::from(SummaryCommand::new())
+            }commands::schedule::unlock::COMMAND_NAME => {
+                Box::from(UnlockCommand::new())
             }
 
 
@@ -367,6 +370,8 @@ impl EventHandler for Handler {
                 .create_application_command(|command| commands::trading::orders::register(command))
                 .create_application_command(|command| commands::trading::cancel::register(command))
                 .create_application_command(|command| commands::schedule::summary::register(command))
+                .create_application_command(|command| commands::schedule::unlock::register(command))
+
 
 
         })
