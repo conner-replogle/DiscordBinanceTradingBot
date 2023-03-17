@@ -137,7 +137,7 @@ impl Handler {
             commands::schedule::summary::COMMAND_NAME => {
                 Box::from(SummaryCommand::new())
             }commands::schedule::unlock::COMMAND_NAME => {
-                Box::from(UnlockCommand::new())
+                Box::from(UnlockCommand::new(self.binance.clone()))
             }
 
 
