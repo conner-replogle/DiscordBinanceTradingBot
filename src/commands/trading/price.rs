@@ -85,6 +85,7 @@ impl SlashCommand for PriceCommand {
             None => "BTCUSDT".into(),
         };
         let mut price = self.market.get_price(&symbol).unwrap();
+        let mut content_msg = String::new();
         loop {
             let transaction = binance.get_transaction()?;
             let a = msg.clone();
@@ -115,12 +116,16 @@ impl SlashCommand for PriceCommand {
                         }else{
                             return Err(CommandError::TradingBotError(TradingBotError::NotClockedIn("".into())))
                         }
-                        binance.buy(Some(price.price as f32), None)?;
                         a.create_interaction_response(&ctx, |r| {
-                            r.kind(InteractionResponseType::UpdateMessage).interaction_response_data(|a| {
-                            a.content(format!("Bought @${}",price.price))
-                        })})
+                            r.kind(InteractionResponseType::DeferredUpdateMessage)
+                        }).await?;
+                        binance.buy(Some(price.price as f32), None)?;
+                        content_msg=format!("Bought @${}",price.price);
+                        a.edit_original_interaction_response(&ctx, |a| {
+                            a.content(&content_msg)
+                        })
                         .await?;
+                    
                         
                         
                     }
@@ -133,12 +138,15 @@ impl SlashCommand for PriceCommand {
                         }else{
                             return Err(CommandError::TradingBotError(TradingBotError::NotClockedIn("".into())))
                         }
-                        binance.buy(None, None)?;
                         a.create_interaction_response(&ctx, |r| {
-                            r.kind(InteractionResponseType::UpdateMessage).interaction_response_data(|a| {
-                            a.content("Bought @Market")
+                            r.kind(InteractionResponseType::DeferredUpdateMessage)
+                        }).await?;
+                        binance.buy(None, None)?;
+                        content_msg="Buying @Market".into();
+                        a.edit_original_interaction_response(&ctx, |a| {
+                            a.content(&content_msg)
 
-                        })})
+                        })
                         .await?;
                         
                     }
@@ -151,11 +159,14 @@ impl SlashCommand for PriceCommand {
                         }else{
                             return Err(CommandError::TradingBotError(TradingBotError::NotClockedIn("".into())))
                         }
-                        binance.sell(None, None)?;
                         a.create_interaction_response(&ctx, |r| {
-                            r.kind(InteractionResponseType::UpdateMessage).interaction_response_data(|a| {
-                            a.content("Sold @Market")
-                        })})
+                            r.kind(InteractionResponseType::DeferredUpdateMessage)
+                        }).await?;
+                        binance.sell(None, None)?;
+                        content_msg="Selling @Market".into();
+                        a.edit_original_interaction_response(&ctx, |a| {
+                            a.content(&content_msg)
+                        })
                         .await?;
                         
                     }
@@ -167,11 +178,13 @@ impl SlashCommand for PriceCommand {
                         }else{
                             return Err(CommandError::TradingBotError(TradingBotError::NotClockedIn("".into())))
                         }
-                        binance.sell(Some(price.price as f32), None)?;
                         a.create_interaction_response(&ctx, |r| {
-                            r.kind(InteractionResponseType::UpdateMessage).interaction_response_data(|a| {
-                            a.content(format!("Sold @${}",price.price))
-                        })
+                            r.kind(InteractionResponseType::DeferredUpdateMessage)
+                        }).await?;
+                        binance.sell(Some(price.price as f32), None)?;
+                        content_msg=format!("Selling @${}",price.price);
+                        a.edit_original_interaction_response(&ctx, |a| {
+                            a.content(&content_msg)
                         })
                         .await?;
                        
@@ -250,6 +263,7 @@ impl SlashCommand for PriceCommand {
                 })
                 .attachment(AttachmentType::Path(Path::new("data/image.png")))
                 .set_components(components.unwrap_or(CreateComponents::default()))
+                .content(&content_msg)
                 
             })
             .await

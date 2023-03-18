@@ -125,9 +125,11 @@ impl SlashCommand for SellCommand {
 
         if a.data.custom_id == "confirmed" {
             trace!("sending sell");
+            a.create_interaction_response(&ctx, |r| {
+                r.kind(InteractionResponseType::DeferredUpdateMessage)
+            }).await?;
             let order = binance.sell(price, None)?;//TODO ADD QUANTITY PARAM
-            interaction
-                .edit_original_interaction_response(&ctx.http, |response| {
+            a.edit_original_interaction_response(&ctx, |response| {
                     response
                         .content("Order Sent")
                         .embed(|embed| {
@@ -141,8 +143,8 @@ impl SlashCommand for SellCommand {
                                 )
                         })
                         .components(|c| c.set_action_rows(Vec::new()))
-                })
-                .await?;
+            })
+            .await?;
         } else {
             interaction
                 .edit_original_interaction_response(&ctx.http, |response| {
