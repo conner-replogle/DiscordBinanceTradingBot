@@ -21,7 +21,7 @@ use crate::binance_wrapped::BinanceWrapped;
 use crate::config::{Config};
 use crate::db::{establish_connection, self};
 use crate::models::{Reservation, BinanceAccount, ClockStub, DBTransaction};
-pub async fn run(ctx: Arc<Context>, config: Arc<ArcSwap<Config>>, binance: Arc<RwLock<BinanceWrapped>>) {
+pub async fn run(ctx: Arc<Context>, config: Arc<ArcSwap<Config>>, binance: BinanceWrapped) {
     let mut scheduler = AsyncScheduler::new();
     debug!("We running");
     let ctx_clone = ctx.clone();
@@ -55,7 +55,7 @@ async fn handle_errors(fun: impl Future<Output = Result<(), Box<dyn Error>>>) {
 async fn handle_afk(
     ctx: Arc<Context>,
     config: Arc<ArcSwap<Config>>,
-    binance_w: Arc<RwLock<BinanceWrapped>>) -> Result<(), Box<dyn Error>> {
+    binance_w: BinanceWrapped) -> Result<(), Box<dyn Error>> {
     let mut connection = establish_connection();
     let config = config.load();
     let dbinance = binance_w.read().await;
@@ -148,7 +148,7 @@ use diesel::ExpressionMethods;
 async fn handle_orders(
     ctx: Arc<Context>,
     config: Arc<ArcSwap<Config>>,
-    binance_w: Arc<RwLock<BinanceWrapped>>
+    binance_w: BinanceWrapped
 ) -> Result<(), Box<dyn Error>> {
     let mut connection = establish_connection();
     let config = config.load();

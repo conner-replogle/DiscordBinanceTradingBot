@@ -1,6 +1,6 @@
 use arc_swap::{ArcSwap, ArcSwapAny, Guard};
 use binance::account::Account;
-use serenity::{client::Context, model::prelude::{component::ButtonStyle, command::CommandOptionType}};
+use serenity::{client::Context, model::prelude::{component::ButtonStyle, command::CommandOptionType, interaction::InteractionResponseType}};
 use std::{sync::Arc, thread, time::Duration};
 use tracing::{debug, warn, trace};
 use tokio::sync::RwLock;
@@ -35,11 +35,11 @@ pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApp
 }
 
 pub struct BuyCommand {
-    binance: Arc<RwLock<BinanceWrapped>>,
+    binance: BinanceWrapped,
 }
 
 impl BuyCommand {
-    pub fn new(binance: Arc<RwLock<BinanceWrapped>>) -> Self {
+    pub fn new(binance: BinanceWrapped) -> Self {
         BuyCommand { binance }
     }
 }
@@ -75,7 +75,7 @@ impl SlashCommand for BuyCommand {
             }
         };
         debug!("Executing Buy Command");
-        let binance = self.binance.read().await;
+        let binance = self.binance;
         trace!("Locked Binance Account");
         if let Some(stub) = binance.is_clocked_in()?{
             if stub.user_id != interaction.user.id.0 as i64{
@@ -138,8 +138,8 @@ impl SlashCommand for BuyCommand {
 
             let order = binance.buy(price, quantity)?;
             debug!("Order {:#?}",order);
-            interaction
-                .edit_original_interaction_response(&ctx.http, |response| {
+            a.create_interaction_response(&ctx, |r| {
+                r.kind(InteractionResponseType::UpdateMessage).interaction_response_data(|response| {
                     response
                         .content("Order Sent")
                         .embed(|embed| {
@@ -148,13 +148,13 @@ impl SlashCommand for BuyCommand {
                                 .field("Status", order.status, false)
                                 .field(
                                     "Filled",
-                                    order.price,
+                                    order.cummulative_quote_qty / order.executed_qty,
                                     false,
                                 )
                         })
                         .components(|c| c.set_action_rows(Vec::new()))
-                })
-                .await?;
+            })})
+            .await?;
         } else {
             trace!("Order Canceled");
 

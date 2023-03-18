@@ -36,12 +36,12 @@ pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApp
 }
 
 pub struct PriceCommand {
-    binance: Arc<RwLock<BinanceWrapped>>,
+    binance: BinanceWrapped,
     market: Market,
 }
 
 impl PriceCommand {
-    pub fn new(binance: Arc<RwLock<BinanceWrapped>>, market: Market) -> Self {
+    pub fn new(binance: BinanceWrapped, market: Market) -> Self {
         PriceCommand { binance, market }
     }
 }
@@ -64,7 +64,7 @@ impl SlashCommand for PriceCommand {
     ) -> Result<(), CommandError> {
         let config = config.load();
         debug!("Executiuting Price Command");
-        let binance = self.binance.read().await;
+        let binance = self.binance;
         let mut msg = interaction
             .get_interaction_response(&ctx.http)
             .await

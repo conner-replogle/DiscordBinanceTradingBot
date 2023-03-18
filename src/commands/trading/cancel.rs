@@ -26,11 +26,11 @@ pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApp
 }
 
 pub struct CancelCommand {
-    binance: Arc<RwLock<BinanceWrapped>>,
+    binance: BinanceWrapped,
 }
 
 impl CancelCommand {
-    pub fn new(binance: Arc<RwLock<BinanceWrapped>>) -> Self {
+    pub fn new(binance: BinanceWrapped) -> Self {
         CancelCommand { binance }
     }
 }
@@ -51,7 +51,7 @@ impl SlashCommand for CancelCommand {
     ) -> Result<(), CommandError> {
         let config = config.load();
         debug!("Executing Orders Command");
-        let binance = self.binance.read().await;
+        let binance = self.binance;
     
         let symbol = &match config.get::<String>("trading", "symbol")?{
             Some(n) => n,

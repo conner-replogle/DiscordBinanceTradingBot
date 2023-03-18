@@ -32,10 +32,10 @@ pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApp
 }
 
 pub struct SellCommand {
-    binance: Arc<RwLock<BinanceWrapped>>,
+    binance: BinanceWrapped,
 }
 impl SellCommand {
-    pub fn new(binance: Arc<RwLock<BinanceWrapped>>) -> Self {
+    pub fn new(binance: BinanceWrapped) -> Self {
         SellCommand { binance }
     }
 }
@@ -57,7 +57,7 @@ impl SlashCommand for SellCommand {
     ) -> Result<(), CommandError> {
         let config = config.load();
         debug!("Executing Sell Command");
-        let binance = self.binance.read().await;
+        let binance = self.binance;
         trace!("Locked Binance Account");
         if let Some(stub) = binance.is_clocked_in()?{
             if stub.user_id != interaction.user.id.0 as i64{
@@ -126,8 +126,8 @@ impl SlashCommand for SellCommand {
         if a.data.custom_id == "confirmed" {
             trace!("sending sell");
             let order = binance.sell(price, None)?;//TODO ADD QUANTITY PARAM
-            interaction
-                .edit_original_interaction_response(&ctx.http, |response| {
+            a.create_interaction_response(&ctx, |r| {
+                r.kind(InteractionResponseType::UpdateMessage).interaction_response_data(|response| {
                     response
                         .content("Order Sent")
                         .embed(|embed| {
@@ -141,8 +141,8 @@ impl SlashCommand for SellCommand {
                                 )
                         })
                         .components(|c| c.set_action_rows(Vec::new()))
-                })
-                .await?;
+            })})
+            .await?;
         } else {
             interaction
                 .edit_original_interaction_response(&ctx.http, |response| {

@@ -33,11 +33,11 @@ pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApp
 
 
 pub struct ClockCommand{
-    account: Arc<RwLock<BinanceWrapped>>
+    binance: BinanceWrapped
 }
 impl ClockCommand {
-    pub fn new(account: Arc<RwLock<BinanceWrapped>>) -> Self {
-        ClockCommand {account}
+    pub fn new(binance: BinanceWrapped) -> Self {
+        ClockCommand {binance}
     }
 }
 #[async_trait]
@@ -57,16 +57,16 @@ impl SlashCommand for ClockCommand {
     ) -> Result<(), CommandError> {
         trace!("Clock Command");
 
-        let account = self.account.read().await;     
-        let clocked_in = account.is_clocked_in()?;   
+        let binance = self.binance;    
+        let clocked_in = binance.is_clocked_in()?;   
         trace!("Clock {clocked_in:?}");
 
         if let Some(_) = clocked_in{
-            account.unlock(Some(interaction.user.id.0 as i64))?;
+            binance.unlock(Some(interaction.user.id.0 as i64))?;
             interaction.edit_original_interaction_response(&ctx.http, |i|
             i.content("Clocked out")).await?;
         }else{
-            account.lock(interaction.user.id.0 as i64)?;
+            binance.lock(interaction.user.id.0 as i64)?;
             interaction.edit_original_interaction_response(&ctx.http, |i|
                 i.content("Clocked In")).await?;
         }

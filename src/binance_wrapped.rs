@@ -15,7 +15,7 @@ use crate::{
     schema::binance_accounts,
 };
 
-
+#[derive(Clone)]
 pub struct BinanceWrapped {
     pub id: i32,
     pub account: Option<Account>,
@@ -54,20 +54,23 @@ impl BinanceWrapped {
         use crate::schema::binance_accounts::dsl;
         use diesel::ExpressionMethods;
 
-        //unselect previous account if one
-        diesel::update(dsl::binance_accounts.filter(dsl::selected.eq(true)))
-            .set(dsl::selected.eq(false))
-            .execute(&mut connection)?;
+        
 
         let db_account = dsl::binance_accounts
             .filter(dsl::name.eq(account_name.clone()))
             .first::<BinanceAccount>(&mut connection)?;
+        if db_account.id == self.id{
+            return Ok(());
+        }
+        //unselect previous account if one
+        diesel::update(dsl::binance_accounts.filter(dsl::selected.eq(true)))
+            .set(dsl::selected.eq(false))
+            .execute(&mut connection)?;
         trace!("Setting Account to {account_name} isPaper{}",db_account.is_paper);
         let account: Account;
         let market: Market;
         let general: General;
         if db_account.is_paper {
-           
             account = Binance::new_with_config(
                 Some(db_account.api_key.clone()),
                 Some(db_account.secret.clone()),

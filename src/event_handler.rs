@@ -46,14 +46,14 @@ use crate::utils::message::send_status;
 use crate::{commands, interval_handler};
 
 pub struct Handler {
-    binance: Arc<RwLock<BinanceWrapped>>,
+    binance: BinanceWrapped,
     config: Arc<ArcSwap<Config>>,
     market: Market,
     is_loop_running: AtomicBool,
 }
 impl Handler {
     pub fn new(
-        binance: Arc<RwLock<BinanceWrapped>>,
+        binance: BinanceWrapped,
         config: Arc<ArcSwap<Config>>,
         market: Market,
     ) -> Self {
@@ -256,7 +256,7 @@ impl Handler {
 
         if command_config.counts_as_activity{
             trace!("Logging activity");
-            let acc = self.binance.read().await;
+            let acc = &self.binance;
             let pot_stub = acc.is_clocked_in();
             if let Ok(Some(stub)) = pot_stub{
                 use diesel::query_dsl::methods::FilterDsl;

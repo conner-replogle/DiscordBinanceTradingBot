@@ -32,11 +32,11 @@ pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApp
 }
 
 pub struct OrdersCommand {
-    binance: Arc<RwLock<BinanceWrapped>>,
+    binance: BinanceWrapped,
 }
 
 impl OrdersCommand {
-    pub fn new(binance: Arc<RwLock<BinanceWrapped>>) -> Self {
+    pub fn new(binance: BinanceWrapped) -> Self {
         OrdersCommand { binance }
     }
 }
@@ -64,7 +64,7 @@ impl SlashCommand for OrdersCommand {
             }
         };
         debug!("Executing Orders Command");
-        let binance = self.binance.read().await;
+        let binance = self.binance;
         let orders: Vec<DBTransaction>;
         {
             use crate::schema::transactions::dsl;

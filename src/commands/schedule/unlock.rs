@@ -33,11 +33,11 @@ pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApp
 
 
 pub struct UnlockCommand{
-    account: Arc<RwLock<BinanceWrapped>>
+    binance: BinanceWrapped
 }
 impl UnlockCommand {
-    pub fn new(account: Arc<RwLock<BinanceWrapped>>) -> Self {
-        UnlockCommand {account}
+    pub fn new(binance: BinanceWrapped) -> Self {
+        UnlockCommand {binance}
     }
 }
 #[async_trait]
@@ -57,8 +57,8 @@ impl SlashCommand for UnlockCommand {
     ) -> Result<(), CommandError> {
         debug!("Unlock Command");
 
-        let account = self.account.read().await;     
-        account.unlock(None)?;
+        let binance = self.binance;    
+        binance.unlock(None)?;
         interaction.edit_original_interaction_response(&ctx.http, |i|
             i.content("Unlocked")).await?;
 

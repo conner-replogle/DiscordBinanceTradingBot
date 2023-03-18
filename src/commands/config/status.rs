@@ -23,10 +23,10 @@ pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApp
 }
 
 pub struct StatusCommand{
-    binance: Arc<RwLock<BinanceWrapped>>
+    binance: BinanceWrapped
 }
 impl StatusCommand {
-    pub fn new(binance: Arc<RwLock<BinanceWrapped>>) -> Self {
+    pub fn new(binance: BinanceWrapped) -> Self {
         StatusCommand {
             binance
         }
@@ -47,7 +47,7 @@ impl SlashCommand for StatusCommand {
         ctx: Context,
         config: Arc<ArcSwapAny<Arc<Config>>>,
     ) -> Result<(), CommandError> {
-        let binance = self.binance.read().await;
+        let binance = self.binance;
         let mut binance_status = "".into();
         if let Some(account) = binance.account.as_ref(){
             let account_info = account.get_account();

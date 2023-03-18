@@ -26,10 +26,10 @@ pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApp
 }
 
 pub struct BalanceCommand {
-    binance: Arc<RwLock<BinanceWrapped>>,
+    binance: BinanceWrapped,
 }
 impl BalanceCommand {
-    pub fn new(binance: Arc<RwLock<BinanceWrapped>>) -> Self {
+    pub fn new(binance: BinanceWrapped) -> Self {
         BalanceCommand { binance }
     }
 }
@@ -49,7 +49,7 @@ impl SlashCommand for BalanceCommand {
         ctx: Context,
         config: Arc<ArcSwapAny<Arc<Config>>>,
     ) -> Result<(), CommandError> {
-        let binance = self.binance.read().await;
+        let binance = self.binance;
         
         let (base,quote) = binance.get_balance()?;
 

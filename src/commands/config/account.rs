@@ -83,11 +83,11 @@ pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApp
 
 
 pub struct AccountCommand {
-    binance: Arc<RwLock<BinanceWrapped>>
+    binance: BinanceWrapped
 }
 
 impl AccountCommand {
-    pub fn new(binance: Arc<RwLock<BinanceWrapped>>) -> Self {
+    pub fn new(binance: BinanceWrapped) -> Self {
         AccountCommand {binance }
     }
 }
@@ -141,10 +141,7 @@ impl SlashCommand for AccountCommand {
             }))?;
 
             config_swap.store(Arc::from(Config::load()?));
-            {
-                let mut binance = self.binance.write().await;
-                binance.load_account()?;
-            }
+
             interaction.edit_original_interaction_response(&ctx.http, |i|
                 i.content("Account Set succesfully")
             ).await?;
