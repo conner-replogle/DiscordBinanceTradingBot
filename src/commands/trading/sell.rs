@@ -22,12 +22,17 @@ pub(crate) const COMMAND_NAME: &'static str = "sell";
 pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
     command
         .name(COMMAND_NAME)
-        .description("buy BTC at either market or a fixed price")
+        .description("sell BTC at either market or a fixed price")
         .create_option(|opt|
             opt.name("price")
-            .description("price to buy at leave blank for market")
+            .description("price to sell at leave blank for market")
             .kind(CommandOptionType::Number)
             //.set_autocomplete(true)
+        )
+        .create_option(|opt|
+            opt.name("quantity")
+            .description("account percentage to sell with leave blank to sell with whole account 0-1")
+            .kind(CommandOptionType::Number)
         )
 }
 
@@ -70,6 +75,13 @@ impl SlashCommand for SellCommand {
             Ok(price) => Some(price),
             Err(err) => {
                 warn!("Error parsing price {err}");
+                None
+            }
+        };
+        let quantity = match get_option::<f64>(&mut interaction.data.options.iter(), "quantity"){
+            Ok(quantity) => Some(quantity),
+            Err(err) => {
+                warn!("Error parsing quantity {err}");
                 None
             }
         };
@@ -128,7 +140,7 @@ impl SlashCommand for SellCommand {
             a.create_interaction_response(&ctx, |r| {
                 r.kind(InteractionResponseType::DeferredUpdateMessage)
             }).await?;
-            let order = binance.sell(price, None)?;//TODO ADD QUANTITY PARAM
+            let order = binance.sell(price, quantity)?;//TODO ADD QUANTITY PARAM
             a.edit_original_interaction_response(&ctx, |response| {
                     response
                         .content("Order Sent")
