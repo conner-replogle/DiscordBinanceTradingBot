@@ -1,4 +1,5 @@
 use arc_swap::{ArcSwapAny, Guard};
+use last_git_commit::LastGitCommit;
 use serenity::client::Context;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -55,12 +56,18 @@ impl SlashCommand for StatusCommand {
                 Ok(_) => format!("✅")
             }
         }
+
+        let lgc = LastGitCommit::new().build().unwrap();
         
         //Check if order handler is up
         //Check if rrservation handler is up
         interaction
             .edit_original_interaction_response(&ctx.http, |response| response.embed(|e|
             e.field("Binance", binance_status, false)
+            ).embed(|e|
+                e.title("Git Commit")
+                .field("Message", lgc.message().unwrap_or(&"No Message".into()), false)
+                .field("Git hash", lgc.id().short(), false)
             ))
             .await?;
         Ok(())

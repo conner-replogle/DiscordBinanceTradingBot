@@ -1,6 +1,6 @@
 use arc_swap::{ArcSwap, ArcSwapAny, Guard};
 use binance::account::Account;
-use serenity::{client::Context, model::prelude::{component::ButtonStyle, command::CommandOptionType}};
+use serenity::{client::Context, model::prelude::{component::ButtonStyle, command::CommandOptionType, interaction::InteractionResponseType}};
 use std::{sync::Arc, thread, time::Duration};
 use tracing::{debug, warn, trace};
 use tokio::sync::RwLock;
@@ -135,11 +135,12 @@ impl SlashCommand for BuyCommand {
         trace!("Recieved Button Interaction");
         if a.data.custom_id == "confirmed" {
             trace!("Sending BUY");
-
+            a.create_interaction_response(&ctx, |r| {
+                r.kind(InteractionResponseType::DeferredUpdateMessage)
+            }).await?;
             let order = binance.buy(price, quantity)?;
             debug!("Order {:#?}",order);
-            interaction
-                .edit_original_interaction_response(&ctx.http, |response| {
+            a.edit_original_interaction_response(&ctx, |response| {
                     response
                         .content("Order Sent")
                         .embed(|embed| {
@@ -148,13 +149,13 @@ impl SlashCommand for BuyCommand {
                                 .field("Status", order.status, false)
                                 .field(
                                     "Filled",
-                                    order.price,
+                                    order.cummulative_quote_qty / order.executed_qty,
                                     false,
                                 )
                         })
                         .components(|c| c.set_action_rows(Vec::new()))
-                })
-                .await?;
+            })
+            .await?;
         } else {
             trace!("Order Canceled");
 

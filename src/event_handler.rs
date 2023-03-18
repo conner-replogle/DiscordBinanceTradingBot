@@ -77,6 +77,8 @@ impl Handler {
             commands::config::set_config::COMMAND_NAME => Box::from(SetConfigCommand::new()),
             commands::schedule::reserve::COMMAND_NAME => Box::from(ReserveCommand::new()),
             commands::config::account::COMMAND_NAME => Box::from(AccountCommand::new(self.binance.clone())),
+            commands::schedule::summary::COMMAND_NAME => Box::from(SummaryCommand::new()),
+
 
             _ => {
                 error!("Autocomplete did not exist");

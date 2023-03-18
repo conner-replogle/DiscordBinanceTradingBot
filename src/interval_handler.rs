@@ -47,7 +47,7 @@ pub async fn run(ctx: Arc<Context>, config: Arc<ArcSwap<Config>>, binance: Arc<R
 }
 async fn handle_errors(fun: impl Future<Output = Result<(), Box<dyn Error>>>) {
     if let Err(err) = fun.await {
-        warn!("error occured {} from {:?}", err, err.source());
+        warn!("error occured {:?} from {:?}", err, err.source());
     }
 }
 
@@ -60,6 +60,9 @@ async fn handle_afk(
     let config = config.load();
     let dbinance = binance_w.read().await;
     let Some(afk_channel) = config.get::<u64>("channels", "afk_channel")?else {
+        warn!(
+            "AFK OFF"
+        );
         return Ok(())
     };
     let Some(stub) = dbinance.is_clocked_in()? else {

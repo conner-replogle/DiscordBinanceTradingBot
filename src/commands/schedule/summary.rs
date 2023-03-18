@@ -1,10 +1,10 @@
 use arc_swap::ArcSwapAny;
-use chrono::{NaiveDateTime, Utc};
+use chrono::{NaiveDateTime, Utc, Date, NaiveDate, Days};
 use chrono_tz::Tz;
 use diesel::{sql_types::Time, RunQueryDsl, QueryDsl};
 use serenity::{client::Context, model::prelude::command::CommandOptionType};
-use std::sync::Arc;
-use tracing::{instrument, trace};
+use std::{sync::Arc, iter::Sum};
+use tracing::{instrument, trace, warn};
 
 use diesel::ExpressionMethods;
 use serenity::{
@@ -29,7 +29,13 @@ pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApp
     command
         .name(COMMAND_NAME)
         .description("get employee summaries")
-
+        .create_option(|opt| {
+            opt.kind(CommandOptionType::String)
+                .name("date")
+                .description("Date to get a summary for")
+                .set_autocomplete(true)
+                .required(true)
+        })
 }
 
 
@@ -55,7 +61,15 @@ impl SlashCommand for SummaryCommand {
         ctx: Context,
         config: Arc<ArcSwapAny<Arc<Config>>>,
     ) -> Result<(), CommandError> {
+
         let mut connection = establish_connection();
+        let mut options = interaction.data.options.iter();
+
+        let date_str = get_option::<String>(&mut options, "date")?;
+        let Ok(mut date) =  NaiveDate::parse_from_str(&date_str, "%Y/%m/%d") else {
+            return Err(CommandError::IncorrectParameters("Failed to parse Date".into()))
+        };
+
         let users;
         //Get users
         trace!("Getting users");
@@ -66,12 +80,15 @@ impl SlashCommand for SummaryCommand {
         }   
         let mut pay = Vec::new();
         trace!("Calculating Pay for users {:?}",users);
-
+        let beginning_of_day = date.and_hms_opt(0, 0, 0).expect("failed to get beginning of day").and_local_timezone(Utc).unwrap();
+        let end_of_day = date.and_hms_opt(23, 59, 59).expect("failed to get end of day").and_local_timezone(Utc).unwrap();
+        trace!("Looking for stubs within {} till {}",beginning_of_day,end_of_day);
         for user in users.iter(){
             let stubs;
             {
                 use crate::schema::clock_stubs::dsl;
-                stubs = dsl::clock_stubs.filter(dsl::user_id.eq(user.id)).load::<ClockStub>(&mut connection)?;
+                use diesel::BoolExpressionMethods;
+                stubs = dsl::clock_stubs.filter(dsl::user_id.eq(user.id).and(dsl::start_time.between(beginning_of_day,end_of_day))).load::<ClockStub>(&mut connection)?;
             }   
             trace!("Calculating Pay for user {:?} with stubs {:?}",user,stubs);
             let mut total_earned = 0.0;
@@ -109,6 +126,7 @@ impl SlashCommand for SummaryCommand {
         }
 
         interaction.edit_original_interaction_response(&ctx.http, |i| {
+            i.content("Gathered Summary");
             for (tag,mins,earned) in pay.iter(){
                 i.embed(|e|
                     e.title(tag)
@@ -122,6 +140,45 @@ impl SlashCommand for SummaryCommand {
 
 
         
+        Ok(())
+    }
+}
+#[async_trait]
+impl AutoComplete for SummaryCommand {
+    #[instrument(skip_all, name = "AutoComplete Summary", level = "trace")]
+    async fn auto_complete(
+        &self,
+        interaction: serenity::model::prelude::interaction::autocomplete::AutocompleteInteraction,
+        ctx: Context,
+        config: Arc<Config>,
+    ) -> Result<(), CommandError> {
+
+        let date = Utc::now().date_naive();
+  
+        let mut formatted_dates = Vec::new();
+        for i in 0..25{
+            if let Some(new_date) = date.checked_sub_days(Days::new(i)){
+                formatted_dates.push(new_date.format("%Y/%m/%d"));
+
+            }
+        }
+        
+        trace!(
+            "Date {}",date
+        );
+
+
+        
+        
+        interaction
+            .create_autocomplete_response(&ctx.http, |a| {
+                formatted_dates.iter().take(25).for_each(|str| {
+                    a.add_string_choice(str.clone(), str);
+                });
+                a
+            })
+            .await?;
+
         Ok(())
     }
 }

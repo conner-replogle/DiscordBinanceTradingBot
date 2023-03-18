@@ -15,6 +15,7 @@ use crate::{
     schema::binance_accounts,
 };
 
+
 pub struct BinanceWrapped {
     pub id: i32,
     pub account: Option<Account>,
