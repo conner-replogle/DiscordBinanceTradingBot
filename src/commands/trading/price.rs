@@ -10,7 +10,7 @@ use serenity::{
     builder::CreateComponents,
     client::Context,
     futures::StreamExt,
-    model::prelude::{component::{ButtonStyle, InputTextStyle}, AttachmentId, AttachmentType, EmbedImage, Message},
+    model::prelude::{component::{ButtonStyle, InputTextStyle}, AttachmentId, AttachmentType, EmbedImage, Message, interaction::InteractionResponseType},
     FutureExt,
 };
 use std::{borrow::Cow, future::IntoFuture, path::Path, sync::Arc, task::Poll, time::Duration};
@@ -84,17 +84,17 @@ impl SlashCommand for PriceCommand {
             Some(symbol) => symbol,
             None => "BTCUSDT".into(),
         };
-        let transaction = binance.get_transaction()?;
-        let mut set_price: Option<f64> = None;
         let mut price = self.market.get_price(&symbol).unwrap();
         loop {
+            let transaction = binance.get_transaction()?;
             let a = msg.clone();
             let id = a.attachments.first();
-            let mut components;
+            let  components;
 
             if let Some(Some(a)) = interaction_future.next().now_or_never() {
                 match a.data.custom_id.as_str() {
                     "cancel" => {
+                        
                         msg.edit(&ctx.http, |a| {
                             if let Some(uid) = id {
                                 a.remove_existing_attachment(uid.id);
@@ -116,16 +116,13 @@ impl SlashCommand for PriceCommand {
                             return Err(CommandError::TradingBotError(TradingBotError::NotClockedIn("".into())))
                         }
                         binance.buy(Some(price.price as f32), None)?;
-                        msg.edit(&ctx.http, |a| {
-                            if let Some(uid) = id {
-                                a.remove_existing_attachment(uid.id);
-                            }
+                        a.create_interaction_response(&ctx, |r| {
+                            r.kind(InteractionResponseType::UpdateMessage).interaction_response_data(|a| {
                             a.content(format!("Bought @${}",price.price))
-                                .set_embeds(Vec::new())
-                                .set_components(CreateComponents::default())
-                        })
+                        })})
                         .await?;
-                        return Ok(());
+                        
+                        
                     }
                     "market_buy" => {
                         //TODO finish this shi
@@ -137,16 +134,13 @@ impl SlashCommand for PriceCommand {
                             return Err(CommandError::TradingBotError(TradingBotError::NotClockedIn("".into())))
                         }
                         binance.buy(None, None)?;
-                        msg.edit(&ctx.http, |a| {
-                            if let Some(uid) = id {
-                                a.remove_existing_attachment(uid.id);
-                            }
+                        a.create_interaction_response(&ctx, |r| {
+                            r.kind(InteractionResponseType::UpdateMessage).interaction_response_data(|a| {
                             a.content("Bought @Market")
-                                .set_embeds(Vec::new())
-                                .set_components(CreateComponents::default())
-                        })
+
+                        })})
                         .await?;
-                        return Ok(());
+                        
                     }
                     "market_sell" => {
                         //TODO finish this shi
@@ -158,16 +152,12 @@ impl SlashCommand for PriceCommand {
                             return Err(CommandError::TradingBotError(TradingBotError::NotClockedIn("".into())))
                         }
                         binance.sell(None, None)?;
-                        msg.edit(&ctx.http, |a| {
-                            if let Some(uid) = id {
-                                a.remove_existing_attachment(uid.id);
-                            }
+                        a.create_interaction_response(&ctx, |r| {
+                            r.kind(InteractionResponseType::UpdateMessage).interaction_response_data(|a| {
                             a.content("Sold @Market")
-                                .set_embeds(Vec::new())
-                                .set_components(CreateComponents::default())
-                        })
+                        })})
                         .await?;
-                        return Ok(());
+                        
                     }
                     "sell" => {
                         if let Some(stub) = binance.is_clocked_in()?{
@@ -178,23 +168,20 @@ impl SlashCommand for PriceCommand {
                             return Err(CommandError::TradingBotError(TradingBotError::NotClockedIn("".into())))
                         }
                         binance.sell(Some(price.price as f32), None)?;
-                        msg.edit(&ctx.http, |a| {
-                            if let Some(uid) = id {
-                                a.remove_existing_attachment(uid.id);
-                            }
+                        a.create_interaction_response(&ctx, |r| {
+                            r.kind(InteractionResponseType::UpdateMessage).interaction_response_data(|a| {
                             a.content(format!("Sold @${}",price.price))
-                                .set_embeds(Vec::new())
-                                .set_components(CreateComponents::default())
+                        })
                         })
                         .await?;
-                        return Ok(());
+                       
                     }
                     _ => {}
                 }
             }
             price = self.market.get_price(&symbol).unwrap();
 
-            if transaction.as_ref().is_some() && transaction.as_ref().unwrap().sellReady{
+            if transaction.as_ref().is_some() && transaction.as_ref().unwrap().sellReady && transaction.as_ref().unwrap().sellAvgPrice.is_none(){
                 let mut c = CreateComponents::default();
                 c.create_action_row(|r|
                     
@@ -214,7 +201,7 @@ impl SlashCommand for PriceCommand {
                     )           
                 );
                 components = Some(c)
-            }else{
+            }else if transaction.is_none() || (transaction.as_ref().unwrap().buyReady && transaction.as_ref().unwrap().buyAvgPrice.is_none()){
                 let mut c = CreateComponents::default();
                 c.create_action_row(|r|
                 r.create_button(|b|
@@ -233,12 +220,13 @@ impl SlashCommand for PriceCommand {
                 )
                 );
                 components = Some(c)
+            }else{
+                components = None;
             }
                 
                
             
             //MAKE SYMBOL A CONFIG
-          
             prices.push(price.price as f32);
             if prices.len() > len as usize {
                 prices.remove(0);
@@ -260,7 +248,6 @@ impl SlashCommand for PriceCommand {
                     }
                     e
                 })
-                .content("")
                 .attachment(AttachmentType::Path(Path::new("data/image.png")))
                 .set_components(components.unwrap_or(CreateComponents::default()))
                 

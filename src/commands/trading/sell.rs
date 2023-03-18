@@ -125,7 +125,7 @@ impl SlashCommand for SellCommand {
 
         if a.data.custom_id == "confirmed" {
             trace!("sending sell");
-            let order = binance.sell(price, None)?;//TODO ADD PRICE PARAM
+            let order = binance.sell(price, None)?;//TODO ADD QUANTITY PARAM
             interaction
                 .edit_original_interaction_response(&ctx.http, |response| {
                     response
