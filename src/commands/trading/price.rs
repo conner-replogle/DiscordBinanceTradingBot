@@ -75,7 +75,10 @@ impl SlashCommand for PriceCommand {
 
         let mut interval = time::interval(Duration::from_millis(1000));
         let mut prices = vec![];
-
+        let market_orders_allowed = match config.get("trading", "market_orders")? {
+            Some(int) => int,
+            None => true,
+        };
         let len = match config.get("trading", "price_command_price_len")? {
             Some(int) => int,
             None => 60,
@@ -206,6 +209,7 @@ impl SlashCommand for PriceCommand {
                         b.custom_id("market_sell")
                         .label("Market Sell")
                         .style(ButtonStyle::Success)
+                        .disabled(!market_orders_allowed)
                     )
                     .create_button(|b|
                         b.custom_id("cancel")
@@ -225,6 +229,7 @@ impl SlashCommand for PriceCommand {
                     b.custom_id("market_buy")
                     .label("Market Buy")
                     .style(ButtonStyle::Success)
+                    .disabled(!market_orders_allowed)
                 )
                 .create_button(|b|
                     b.custom_id("cancel")

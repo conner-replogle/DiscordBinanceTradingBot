@@ -1,14 +1,7 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+#[proc_macro]
+pub fn my_fn_like_proc_macro(input: TokenStream) -> TokenStream {
+  // 1. Use syn to parse the input tokens into a syntax tree.
+  // 2. Use quote to generate new tokens based on what we parsed.
+  // 3. Return the generated tokens.
+  input
 }

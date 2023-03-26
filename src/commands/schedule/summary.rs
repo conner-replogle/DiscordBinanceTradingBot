@@ -37,7 +37,7 @@ pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApp
                 .set_autocomplete(true)
                 .required(true)
         }).create_option(|opt| {
-            opt.kind(CommandOptionType::Number)
+            opt.kind(CommandOptionType::Integer)
                 .name("page")
                 .description("Get the nth page of summaries DEFUALT IS 0")
         })
@@ -74,7 +74,7 @@ impl SlashCommand for SummaryCommand {
         let date_str = get_option::<String>(&mut options, "date")?;
         let page_int = get_option::<usize>(&mut options, "page").unwrap_or(0);
 
-        let Ok(mut date) =  NaiveDate::parse_from_str(&date_str, "%Y/%m/%d") else {
+        let Ok(date) =  NaiveDate::parse_from_str(&date_str, "%Y/%m/%d") else {
             return Err(CommandError::IncorrectParameters("Failed to parse Date".into()))
         };
         let summary_page_len = match config.get("schedule", "summary_page_len")? {
@@ -85,6 +85,7 @@ impl SlashCommand for SummaryCommand {
             Some(int) => int,
             None => true,
         };
+        
         let users;
         //Get users
         trace!("Getting users");
