@@ -1,4 +1,3 @@
-#![feature(iter_advance_by)]
 
 mod binance_wrapped;
 mod commands;
