@@ -135,7 +135,10 @@ impl SlashCommand for SummaryCommand {
         interaction.edit_original_interaction_response(&ctx.http, |i| {
             i.content("Gathered Summary");
 
-            for (tag,mins,earned) in pay.iter().skip((page_int as usize)*25).take(25){
+            for (tag,mins,earned) in pay.iter().skip((page_int as usize)*15).take(15){
+                if *mins == 0 && *earned == 0.0{
+                    continue;
+                }
                 i.embed(|e|
                     e.title(tag)
                     .field("Mins", mins, true)
