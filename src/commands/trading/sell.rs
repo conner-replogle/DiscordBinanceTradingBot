@@ -85,6 +85,21 @@ impl SlashCommand for SellCommand {
                 None
             }
         };
+        let market_orders_allowed = match config.get("trading", "market_orders")? {
+            Some(int) => int,
+            None => true,
+        };
+
+        if !market_orders_allowed && price.is_none(){
+            interaction
+            .edit_original_interaction_response(&ctx.http, |response| {
+                response
+                    .content("Market orders are disabled please provide a price")
+                }
+            ).await?;
+            return Ok(());
+
+        }
         let msg = format!("Confirm placing order at {}",if price.is_some() {price.unwrap().to_string()}else{"Market Price".into()});
         trace!(msg);
         interaction
@@ -115,6 +130,8 @@ impl SlashCommand for SellCommand {
             Some(int) => int,
             None => 60,
         };
+
+        
 
         let a = match message
             .await_component_interaction(&ctx)

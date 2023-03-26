@@ -172,6 +172,17 @@ impl Config {
         insert_config(
             models::NewConfig {
                 section: "trading",
+                key: "market_orders",
+                value_type: ValueType::BOOL.to_i32(),
+                value: Some("true"),
+                description: "Allow market orders",
+            },
+            &mut connection,
+        )?;
+
+        insert_config(
+            models::NewConfig {
+                section: "trading",
                 key: "symbol",
                 value_type: ValueType::STRING.to_i32(),
                 value: Some("BTCUSDT"),
