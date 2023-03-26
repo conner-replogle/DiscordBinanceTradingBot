@@ -116,7 +116,6 @@ impl SlashCommand for OrdersCommand {
                             sell_orders.push((price,order));
                         }
                     }
-                     
                 }
                 if dots{
                     i.content("Pulling data..");
