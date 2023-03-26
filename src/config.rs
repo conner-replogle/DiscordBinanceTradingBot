@@ -233,6 +233,30 @@ impl Config {
             },
             &mut connection,
         )?;
+
+        insert_config(
+            models::NewConfig {
+                section: "schedule",
+                key: "summary_page_len",
+                value_type: ValueType::INT.to_i32(),
+                value: Some(&(15).to_string()),
+                description: "The amount of summaries to show per page of the /summary command"
+
+            },
+            &mut connection,
+        )?;
+
+        insert_config(
+            models::NewConfig {
+                section: "schedule",
+                key: "summary_filter_blanks",
+                value_type: ValueType::BOOL.to_i32(),
+                value: Some(&(true).to_string()),
+                description: "On /summary command filter out people who have not worked that day"
+
+            },
+            &mut connection,
+        )?;
         insert_config(
             models::NewConfig {
                 section: "schedule",

@@ -66,6 +66,7 @@ impl SlashCommand for SummaryCommand {
         ctx: Context,
         config: Arc<ArcSwapAny<Arc<Config>>>,
     ) -> Result<(), CommandError> {
+        let config = config.load();
 
         let mut connection = establish_connection();
         let mut options = interaction.data.options.iter();
@@ -76,7 +77,14 @@ impl SlashCommand for SummaryCommand {
         let Ok(mut date) =  NaiveDate::parse_from_str(&date_str, "%Y/%m/%d") else {
             return Err(CommandError::IncorrectParameters("Failed to parse Date".into()))
         };
-
+        let summary_page_len = match config.get("schedule", "summary_page_len")? {
+            Some(int) => int,
+            None => 15,
+        };
+        let are_blanks_filtered = match config.get("schedule", "summary_filter_blanks")? {
+            Some(int) => int,
+            None => true,
+        };
         let users;
         //Get users
         trace!("Getting users");
@@ -135,8 +143,8 @@ impl SlashCommand for SummaryCommand {
         interaction.edit_original_interaction_response(&ctx.http, |i| {
             i.content("Gathered Summary");
 
-            for (tag,mins,earned) in pay.iter().skip((page_int as usize)*15).take(15){
-                if *mins == 0 && *earned == 0.0{
+            for (tag,mins,earned) in pay.iter().skip((page_int as usize)*summary_page_len).take(summary_page_len){
+                if are_blanks_filtered &&(*mins == 0 && *earned == 0.0){
                     continue;
                 }
                 i.embed(|e|
