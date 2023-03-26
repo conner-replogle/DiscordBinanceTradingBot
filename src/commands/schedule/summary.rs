@@ -1,3 +1,4 @@
+
 use arc_swap::ArcSwapAny;
 use chrono::{NaiveDateTime, Utc, Date, NaiveDate, Days};
 use chrono_tz::Tz;
@@ -35,6 +36,10 @@ pub(crate) fn register(command: &mut CreateApplicationCommand) -> &mut CreateApp
                 .description("Date to get a summary for")
                 .set_autocomplete(true)
                 .required(true)
+        }).create_option(|opt| {
+            opt.kind(CommandOptionType::Number)
+                .name("page")
+                .description("Get the nth page of summaries DEFUALT IS 0")
         })
 }
 
@@ -66,6 +71,8 @@ impl SlashCommand for SummaryCommand {
         let mut options = interaction.data.options.iter();
 
         let date_str = get_option::<String>(&mut options, "date")?;
+        let page_int = get_option::<usize>(&mut options, "page").unwrap_or(0);
+
         let Ok(mut date) =  NaiveDate::parse_from_str(&date_str, "%Y/%m/%d") else {
             return Err(CommandError::IncorrectParameters("Failed to parse Date".into()))
         };
@@ -127,7 +134,8 @@ impl SlashCommand for SummaryCommand {
 
         interaction.edit_original_interaction_response(&ctx.http, |i| {
             i.content("Gathered Summary");
-            for (tag,mins,earned) in pay.iter(){
+
+            for (tag,mins,earned) in pay.iter().skip((page_int as usize)*25).take(25){
                 i.embed(|e|
                     e.title(tag)
                     .field("Mins", mins, true)
