@@ -23,3 +23,4 @@ clokwerk = "0.4.0"
 anyhow = {version="1.0.69",features = ["backtrace"]}
 chrono-tz = "0.8.1"
 last-git-commit = "0.2.0"
+command_macros = {path="./command_macros"}

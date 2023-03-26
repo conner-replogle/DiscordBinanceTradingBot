@@ -16,6 +16,7 @@ use binance::account::Account;
 use binance::api::Binance;
 use binance::market::Market;
 use binance_wrapped::BinanceWrapped;
+use command_macros::command_path;
 use commands::config::status::StatusCommand;
 use config::Config;
 use dotenv::dotenv;
@@ -52,7 +53,7 @@ async fn main() {
         .init();
 
     info!("Initialized");
-
+    command_path!();
     let config = Arc::new(ArcSwap::from(Arc::new(
         config::Config::first_setup().unwrap(),
     )));
