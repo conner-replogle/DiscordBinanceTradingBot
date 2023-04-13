@@ -183,7 +183,7 @@ async fn handle_orders(
         return Ok(())
     };
     if transaction.buyAvgPrice.is_none(){// Check buy Status
-        trace!("Pulling buy order");
+        //trace!("Pulling buy order");
         let balance = dbinance.get_balance()?;
         let mut ids = transaction.buyOrderIds.split(',');
 
@@ -199,7 +199,18 @@ async fn handle_orders(
         };
         let quote_balance = quote_balance.parse::<f32>().unwrap();
         let last_order = id.parse::<u64>().unwrap();
-        let order = account.order_status(&symbol, last_order)?;
+        let order = match account.order_status(&symbol, last_order){
+            Ok(status) => status,
+            Err(err) => {
+                use crate::schema::transactions::dsl;
+                //remove last id 
+                let new_order_ids:String = transaction.buyOrderIds.split(',').filter(|a| !a.contains(&last_order.to_string())).intersperse(",").collect();
+                trace!("New order ids {new_order_ids}");
+
+                diesel::update(dsl::transactions.filter(dsl::id.eq(transaction.id))).set((dsl::buyOrderIds.eq(new_order_ids),dsl::buyReady.eq(true))).execute(&mut connection)?;
+                return Err(err.into());
+            }
+        };
         match order.status.as_str(){
             x if x =="FILLED" || x == "CANCELED"  => {
                 debug!("Buy Order filled");
@@ -282,7 +293,17 @@ async fn handle_orders(
         };
         let base_balance = base_balance.parse::<f32>().unwrap();
         let last_order = id.parse::<u64>().unwrap();
-        let order = account.order_status(&symbol, last_order)?;
+        let order = match account.order_status(&symbol, last_order){
+            Ok(status) => status,
+            Err(err) => {
+                use crate::schema::transactions::dsl;
+                //remove last id 
+                let new_order_ids:String = transaction.sellOrderIds.split(',').filter(|a| !a.contains(&last_order.to_string())).intersperse(",").collect();
+                trace!("New order ids {new_order_ids}");
+                diesel::update(dsl::transactions.filter(dsl::id.eq(transaction.id))).set((dsl::sellOrderIds.eq(new_order_ids),dsl::sellReady.eq(true))).execute(&mut connection)?;
+                return Err(err.into());
+            }
+        };
         match order.status.as_str(){
             x if x == "FILLED" || x ==  "CANCELED" => {
                 debug!("Sell order filled");

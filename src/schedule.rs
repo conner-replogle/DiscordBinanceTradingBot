@@ -98,6 +98,16 @@ impl Schedule {
         Ok(true)
     }
 
+    pub fn pull_reservations_by_id(id:i64) -> Result<Vec<Reservation>, diesel::result::Error> {
+        let mut connection: SqliteConnection = establish_connection();
+        use crate::schema::reservations::dsl;
+        let pulled_reser = dsl::reservations
+            .filter(dsl::user_id.eq::<i64>(id))
+            .order(dsl::start_time.asc())
+            .load::<Reservation>(&mut connection)?;
+        return Ok(pulled_reser);
+    }
+
     pub fn pull_reservations() -> Result<Vec<Reservation>, diesel::result::Error> {
         let mut connection: SqliteConnection = establish_connection();
         use crate::schema::reservations::dsl::*;
@@ -105,5 +115,12 @@ impl Schedule {
             .order(start_time.asc())
             .load::<Reservation>(&mut connection)?;
         return Ok(pulled_reser);
+    }
+
+    pub fn cancel(id: i32) -> Result<(), diesel::result::Error> {
+        let mut connection: SqliteConnection = establish_connection();
+        use crate::schema::reservations::dsl;
+        diesel::delete(dsl::reservations.filter(dsl::id.eq(id))).execute(&mut connection).unwrap();
+        return Ok(());
     }
 }
