@@ -87,7 +87,7 @@ impl SlashCommand for PriceCommand {
             Some(symbol) => symbol,
             None => "BTCUSDT".into(),
         };
-        let mut price = self.market.get_price(&symbol).unwrap();
+        let mut price = self.market.get_price(&symbol)?;
         let mut content_msg = String::new();
         loop {
             let transaction = binance.get_transaction()?;
