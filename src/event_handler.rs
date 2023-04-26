@@ -34,6 +34,7 @@ use crate::commands::schedule::clock::ClockCommand;
 use crate::commands::schedule::reserve::ReserveCommand;
 use crate::commands::schedule::summary::SummaryCommand;
 use crate::commands::schedule::unlock::UnlockCommand;
+use crate::commands::trading::auto_buy::AutoBuyCommand;
 use crate::commands::trading::balance::BalanceCommand;
 use crate::commands::trading::buy::BuyCommand;
 use crate::commands::trading::cancel::CancelCommand;
@@ -112,6 +113,9 @@ impl Handler {
             }
             commands::trading::buy::COMMAND_NAME => {
                 Box::from(BuyCommand::new(self.binance.clone()))
+            }
+            commands::trading::auto_buy::COMMAND_NAME => {
+                Box::from(AutoBuyCommand::new(self.binance.clone()))
             }
             commands::trading::sell::COMMAND_NAME => {
                 Box::from(SellCommand::new(self.binance.clone()))
@@ -366,6 +370,9 @@ impl EventHandler for Handler {
                 .create_application_command(|command| commands::trading::price::register(command))
                 .create_application_command(|command| {
                     commands::schedule::reserve::register(command)
+                })
+                .create_application_command(|command| {
+                    commands::trading::auto_buy::register(command)
                 })
                 .create_application_command(|command| commands::config::account::register(command))
                 .create_application_command(|command| commands::schedule::clock::register(command))

@@ -149,6 +149,16 @@ impl Config {
 
         insert_config(
             models::NewConfig {
+                section: "trading",
+                key: "buy_auto_timeout_s",
+                value_type: ValueType::BIGINT.to_i32(),
+                value: Some("120"),
+                description: "Timeout for auto buy Command",
+            },
+            &mut connection,
+        )?;
+        insert_config(
+            models::NewConfig {
                 section: "roles",
                 key: "trader",
                 value_type: ValueType::BIGINT.to_i32(),
