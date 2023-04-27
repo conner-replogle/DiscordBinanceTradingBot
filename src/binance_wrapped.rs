@@ -422,7 +422,7 @@ impl BinanceWrapped{
         let Ok(balance) = account.get_balance(symbol_info.base_asset)?.free.parse::<f64>() else{
             return Err(TradingBotError::ParsingDataError("Could no parse balance".into()));
         };
-        let adjusted_balance = format!("{:.4}",(balance - 0.00001) * percentage.unwrap_or(1.0)).parse::<f64>().unwrap();
+        let adjusted_balance = format!("{:.5}",(balance - 0.00001) * percentage.unwrap_or(1.0)).parse::<f64>().unwrap();
         let order: Transaction;
 
 
