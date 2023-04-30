@@ -193,6 +193,17 @@ impl Config {
         insert_config(
             models::NewConfig {
                 section: "trading",
+                key: "confirm_orders",
+                value_type: ValueType::BOOL.to_i32(),
+                value: Some("true"),
+                description: "Confirm buy/sell orders",
+            },
+            &mut connection,
+        )?;
+
+        insert_config(
+            models::NewConfig {
+                section: "trading",
                 key: "symbol",
                 value_type: ValueType::STRING.to_i32(),
                 value: Some("BTCUSDT"),

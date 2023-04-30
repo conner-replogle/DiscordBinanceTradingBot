@@ -89,6 +89,11 @@ impl SlashCommand for BuyCommand {
             None => true,
         };
 
+        let confirm_order = match config.get("trading", "confirm_orders")? {
+            Some(int) => int,
+            None => true,
+        };
+
         if !market_orders_allowed && price.is_none(){
             interaction
             .edit_original_interaction_response(&ctx.http, |response| {
@@ -100,88 +105,92 @@ impl SlashCommand for BuyCommand {
 
         }
 
+        if confirm_order{
 
-        let msg = format!("Confirm placing order at {}",if price.is_some() {price.unwrap().to_string()}else{"Market Price".into()});
-        interaction
-            .edit_original_interaction_response(&ctx.http, |response| {
-                response
-                    .content(msg)
-                    .components(|c| {
-                        c.create_action_row(|row| {
-                            row.create_button(|button| {
-                                button
-                                    .custom_id("confirmed")
-                                    .label("Confirm")
-                                    .style(ButtonStyle::Success)
-                            })
-                            .create_button(|button| {
-                                button
-                                    .custom_id("canceled")
-                                    .label("Cancel")
-                                    .style(ButtonStyle::Danger)
-                            })
-                        })
-                    })
-            })
-            .await?;
-        let message = interaction.get_interaction_response(&ctx).await.unwrap();
-        let timeout = match config.get("trading", "buy_timeout_s")? {
-            Some(int) => int,
-            None => 60,
-        };
-
-        let a = match message
-            .await_component_interaction(&ctx)
-            .timeout(Duration::from_secs(timeout as u64))
-            .await
-        {
-            Some(x) => x,
-            None => {
-                interaction
-                    .edit_original_interaction_response(&ctx.http, |response| {
-                        response
-                            .content("Order Place Timed Out")
-                            .components(|c| c.set_action_rows(Vec::new()))
-                    })
-                    .await?;
-                return Ok(());
-            }
-        };
-        trace!("Recieved Button Interaction");
-        if a.data.custom_id == "confirmed" {
-            trace!("Sending BUY");
-            a.create_interaction_response(&ctx, |r| {
-                r.kind(InteractionResponseType::DeferredUpdateMessage)
-            }).await?;
-            let order = binance.buy(price, quantity)?;
-            debug!("Order {:#?}",order);
-            a.edit_original_interaction_response(&ctx, |response| {
-                    response
-                        .content("Order Sent")
-                        .embed(|embed| {
-                            embed
-                                .title(format!("ID{}", order.order_id))
-                                .field("Status", order.status, false)
-                                .field(
-                                    "Filled",
-                                    order.cummulative_quote_qty / order.executed_qty,
-                                    false,
-                                )
-                        })
-                        .components(|c| c.set_action_rows(Vec::new()))
-            })
-            .await?;
-        } else {
-            trace!("Order Canceled");
-
+            let msg = format!("Confirm placing order at {}",if price.is_some() {price.unwrap().to_string()}else{"Market Price".into()});
             interaction
                 .edit_original_interaction_response(&ctx.http, |response| {
                     response
-                        .content("Order Cancelled")
-                        .components(|c| c.set_action_rows(Vec::new()))
+                        .content(msg)
+                        .components(|c| {
+                            c.create_action_row(|row| {
+                                row.create_button(|button| {
+                                    button
+                                        .custom_id("confirmed")
+                                        .label("Confirm")
+                                        .style(ButtonStyle::Success)
+                                })
+                                .create_button(|button| {
+                                    button
+                                        .custom_id("canceled")
+                                        .label("Cancel")
+                                        .style(ButtonStyle::Danger)
+                                })
+                            })
+                        })
                 })
                 .await?;
+            let message = interaction.get_interaction_response(&ctx).await.unwrap();
+            let timeout = match config.get("trading", "buy_timeout_s")? {
+                Some(int) => int,
+                None => 60,
+            };
+
+            let a = match message
+                .await_component_interaction(&ctx)
+                .timeout(Duration::from_secs(timeout as u64))
+                .await
+            {
+                Some(x) => x,
+                None => {
+                    interaction
+                        .edit_original_interaction_response(&ctx.http, |response| {
+                            response
+                                .content("Order Place Timed Out")
+                                .components(|c| c.set_action_rows(Vec::new()))
+                        })
+                        .await?;
+                    return Ok(());
+                }
+            };
+            trace!("Recieved Button Interaction");
+            
+            if a.data.custom_id != "confirmed" {
+                trace!("Order Canceled");
+
+                interaction
+                    .edit_original_interaction_response(&ctx.http, |response| {
+                        response
+                            .content("Order Cancelled")
+                            .components(|c| c.set_action_rows(Vec::new()))
+                    })
+                    .await?;
+                return Ok(())
+            }
         }
+        trace!("Sending BUY");
+        interaction
+            .edit_original_interaction_response(&ctx.http, |r| {
+            r.content("sending buy")
+        }).await?;
+        let order = binance.buy(price, quantity)?;
+        debug!("Order {:#?}",order);
+        interaction.edit_original_interaction_response(&ctx, |response| {
+                response
+                    .content("Order Sent")
+                    .embed(|embed| {
+                        embed
+                            .title(format!("ID{}", order.order_id))
+                            .field("Status", order.status, false)
+                            .field(
+                                "Filled",
+                                order.cummulative_quote_qty / order.executed_qty,
+                                false,
+                            )
+                    })
+                    .components(|c| c.set_action_rows(Vec::new()))
+        })
+        .await?;
 
         Ok(())
     }
