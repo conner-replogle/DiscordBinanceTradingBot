@@ -1,2 +1,2 @@
 # DiscordBinanceTradingBot
-This is the rewrite (js -> rust) of a discord crypto trading bot I wrote for a upwork client. It is a fully working team based crypto trader using the binance platform. Members can execute quick buy/sell through discord, monitor the current price, see indivisual profit and reserve time slots to trade. It has a sqlite database and has had 4+ months of no crashing running being used everyday.
+
